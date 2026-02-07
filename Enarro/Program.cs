@@ -1,7 +1,10 @@
 using System.Data.Common;
 using System.Reflection;
+using System.Text;
 using System.Text.Json;
 using Asp.Versioning;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.IdentityModel.Tokens;
 using Enarro.Data;
 using Enarro.Extensions;
 using Enarro.ServiceDefaults;
@@ -93,7 +96,41 @@ try
     
     #endregion Add Kernel Memory
 
+    #region Add JWT Authentication
+    
+    var jwtSecret = builder.Configuration["JwtSettings:SecretKey"] 
+        ?? throw new InvalidOperationException("JWT SecretKey is not configured. Use user secrets.");
+    var jwtIssuer = builder.Configuration["JwtSettings:Issuer"] ?? "Enarro";
+    var jwtAudience = builder.Configuration["JwtSettings:Audience"] ?? "EnarroAPI";
+    
+    builder.Services
+        .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+        .AddJwtBearer(options =>
+        {
+            options.TokenValidationParameters = new TokenValidationParameters
+            {
+                ValidateIssuer = true,
+                ValidateAudience = true,
+                ValidateLifetime = true,
+                ValidateIssuerSigningKey = true,
+                ValidIssuer = jwtIssuer,
+                ValidAudience = jwtAudience,
+                IssuerSigningKey = new SymmetricSecurityKey(
+                    Encoding.UTF8.GetBytes(jwtSecret)),
+                ClockSkew = TimeSpan.Zero
+            };
+        });
+    
+    builder.Services.AddAuthorization(options =>
+    {
+        options.AddPolicy("AdminOnly", policy => policy.RequireRole("Admin"));
+        options.AddPolicy("UserOrAdmin", policy => policy.RequireRole("User", "Admin"));
+    });
+    
+    #endregion Add JWT Authentication
+
     // Register application services
+    builder.Services.AddScoped<IAuthService, AuthService>();
     builder.Services.AddScoped<IConversationService, ConversationService>();
     builder.Services.AddScoped<IChatService, ChatService>();
     builder.Services.AddScoped<IDocumentService, DocumentService>();
@@ -156,6 +193,10 @@ var apiVersionSet = app
 var versionedGroup = app
                         .MapGroup("api/v{version:apiVersion}")
                         .WithApiVersionSet(apiVersionSet);
+
+// Add authentication and authorization middleware
+app.UseAuthentication();
+app.UseAuthorization();
 
 app.MapEndpoints(versionedGroup);
 

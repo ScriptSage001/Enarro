@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using Enarro.Models.Chat;
 using Enarro.Services;
 
@@ -10,10 +11,12 @@ public class Post : IEndpoint
     public void MapEndpoint(IEndpointRouteBuilder app)
     {
         app.MapPost("chat", Chat)
+                .RequireAuthorization()
                 .WithTags("Chat")
                 .WithSummary("Chat endpoint with conversation history and citations support")
                 .Produces<ChatResponse>(StatusCodes.Status200OK)
                 .ProducesProblem(StatusCodes.Status400BadRequest)
+                .ProducesProblem(StatusCodes.Status401Unauthorized)
                 .ProducesProblem(StatusCodes.Status500InternalServerError);
     }
 

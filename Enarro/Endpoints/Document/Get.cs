@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using Enarro.Models.Document;
 using Enarro.Services;
 
@@ -11,16 +12,20 @@ public class Get : IEndpoint
     {
         app
             .MapGet("documents", ListDocuments)
+            .RequireAuthorization()
             .WithTags("Document")
             .WithSummary("List all documents with optional filtering and pagination")
             .Produces<object>(StatusCodes.Status200OK)
+            .ProducesProblem(StatusCodes.Status401Unauthorized)
             .ProducesProblem(StatusCodes.Status500InternalServerError);
 
         app
             .MapGet("documents/{id}", GetDocument)
+            .RequireAuthorization()
             .WithTags("Document")
             .WithSummary("Get document details by ID")
             .Produces<DocumentMetadata>(StatusCodes.Status200OK)
+            .ProducesProblem(StatusCodes.Status401Unauthorized)
             .ProducesProblem(StatusCodes.Status404NotFound)
             .ProducesProblem(StatusCodes.Status500InternalServerError);
     }

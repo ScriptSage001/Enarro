@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using Enarro.Services;
 
 namespace Enarro.Endpoints.Document;
@@ -10,9 +11,11 @@ public class Delete : IEndpoint
     {
         app
             .MapDelete("documents/{id}", DeleteDocument)
+            .RequireAuthorization()
             .WithTags("Document")
             .WithSummary("Delete a document from the index")
             .Produces<object>(StatusCodes.Status200OK)
+            .ProducesProblem(StatusCodes.Status401Unauthorized)
             .ProducesProblem(StatusCodes.Status404NotFound)
             .ProducesProblem(StatusCodes.Status500InternalServerError);
     }

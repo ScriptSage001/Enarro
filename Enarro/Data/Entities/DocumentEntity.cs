@@ -17,5 +17,10 @@ public class DocumentEntity
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
     
+    // Foreign key to User
+    public Guid? UserId { get; set; }
+    
+    // Navigation properties
+    public UserEntity? User { get; set; }
     public ICollection<DocumentTagEntity> Tags { get; set; } = new List<DocumentTagEntity>();
 }
