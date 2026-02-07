@@ -1,0 +1,7 @@
+﻿services:
+  rag-test:
+    image: rag-test
+    build:
+      context: .
+      dockerfile: Enarro/Dockerfile
+

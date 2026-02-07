@@ -1,0 +1,8 @@
+<Solution>
+  <Folder Name="/Solution Items/">
+    <File Path="compose.yaml" />
+  </Folder>
+  <Project Path="Enarro.AppHost/Enarro.AppHost.csproj" />
+  <Project Path="Enarro.ServiceDefaults/Enarro.ServiceDefaults.csproj" />
+  <Project Path="Enarro/Enarro.csproj" />
+</Solution>

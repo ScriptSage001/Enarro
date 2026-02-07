@@ -1,0 +1,102 @@
+# Build output
+bin/
+obj/
+*.dll
+*.exe
+*.pdb
+
+# User-specific files
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# Visual Studio
+.vs/
+.vscode/
+*.code-workspace
+
+# Rider
+.idea/
+*.sln.iml
+riderModule.iml
+/_ReSharper.Caches/
+
+# Build results
+[Dd]ebug/
+[Dd]ebugPublic/
+[Rr]elease/
+[Rr]eleases/
+x64/
+x86/
+[Aa][Rr][Mm]/
+[Aa][Rr][Mm]64/
+bld/
+[Bb]in/
+[Oo]bj/
+[Ll]og/
+[Ll]ogs/
+
+# .NET Core
+project.lock.json
+project.fragment.lock.json
+artifacts/
+
+# NuGet
+*.nupkg
+*.snupkg
+/packages/
+**/packages/*
+!**/packages/build/
+*.nuget.props
+*.nuget.targets
+
+# Test results
+[Tt]est[Rr]esult*/
+[Bb]uild[Ll]og.*
+*.trx
+*.coverage
+*.coveragexml
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# OS files
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Aspire
+.aspire/
+
+# Docker
+docker-compose.override.yml
+
+# Database
+*.db
+*.db-shm
+*.db-wal
+
+# Secrets
+appsettings.Development.json
+appsettings.*.json
+!appsettings.json
+secrets.json
+*.pfx
+*.key
+
+# Temporary files
+*.tmp
+*.temp
+*.swp
+*~
+
+# Migration scripts (keep migrations folder structure)
+!**/Migrations/
+
+# User secrets
+**/secrets/

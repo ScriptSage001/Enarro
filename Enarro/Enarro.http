@@ -1,0 +1,6 @@
+@Enarro_HostAddress = http://localhost:5294
+
+GET {{Enarro_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
