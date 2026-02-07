@@ -209,24 +209,38 @@ public class DocumentService : IDocumentService
             }
 
             var totalCount = await query.CountAsync(cancellationToken);
-            var items = await query
-                .OrderByDescending(d => d.UploadedAt)
-                .Skip((page - 1) * pageSize)
-                .Take(pageSize)
-                .Select(e => new DocumentMetadata(
-                    e.Id.ToString(),
-                    e.FileName,
-                    e.ContentType,
-                    e.SizeBytes,
-                    e.UploadedAt,
-                    e.UploadedBy,
-                    Enum.Parse<DocumentStatus>(e.Status),
-                    e.Tags.ToDictionary(t => t.TagKey, t => t.TagValue),
-                    e.ChunkCount,
-                    e.ErrorMessage
-                ))
-                .ToListAsync(cancellationToken);
+            var dbData = await query
+                                                    .OrderByDescending(d => d.UploadedAt)
+                                                    .Skip((page - 1) * pageSize)
+                                                    .Take(pageSize)
+                                                    .Select(e => new
+                                                    {
+                                                        e.Id,
+                                                        e.FileName,
+                                                        e.ContentType,
+                                                        e.SizeBytes,
+                                                        e.UploadedAt,
+                                                        e.UploadedBy,
+                                                        e.Status,
+                                                        e.Tags,
+                                                        e.ChunkCount,
+                                                        e.ErrorMessage
+                                                    })
+                                                    .ToListAsync(cancellationToken);
 
+            var items = dbData.Select(e => new DocumentMetadata(
+                                                            e.Id.ToString(),
+                                                            e.FileName,
+                                                            e.ContentType,
+                                                            e.SizeBytes,
+                                                            e.UploadedAt,
+                                                            e.UploadedBy,
+                                                            Enum.Parse<DocumentStatus>(e.Status),
+                                                            e.Tags.ToDictionary(t => t.TagKey, t => t.TagValue),
+                                                            e.ChunkCount,
+                                                            e.ErrorMessage
+                                                        )).ToList();
+            
             _logger.LogInformation("Listed {Count} documents (page {Page} of {TotalPages})", 
                 items.Count, page, (int)Math.Ceiling(totalCount / (double)pageSize));
 
