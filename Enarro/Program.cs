@@ -127,7 +127,8 @@ try
         }, tags: ["llm"])
         .AddCheck("qdrant", () =>
         {
-            var client = new QdrantClient((string)qdrantGrpcUrl);
+            var url = new Uri(qdrantGrpcUrl!);
+            var client = new QdrantClient(url, qdrantApiKey);
             var collection = client.ListCollectionsAsync().Result;
             return HealthCheckResult.Healthy();
         }, tags: ["vector-db"]);
@@ -177,7 +178,7 @@ if (app.Environment.IsDevelopment())
 app.MapDefaultEndpoints();
 
 // Enhanced health check endpoint with detailed JSON response
-app.MapHealthChecks("/health", new HealthCheckOptions
+app.MapHealthChecks("/health-check", new HealthCheckOptions
 {
     ResponseWriter = async (context, report) =>
     {
