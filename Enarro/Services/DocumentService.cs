@@ -32,6 +32,7 @@ public class DocumentService : IDocumentService
 
     public async Task<DocumentIngestResult> IngestAsync(
         IFormFile file,
+        Guid userId,
         Dictionary<string, string>? tags = null,
         CancellationToken cancellationToken = default)
     {
@@ -45,6 +46,7 @@ public class DocumentService : IDocumentService
             ContentType = file.ContentType,
             SizeBytes = file.Length,
             UploadedAt = DateTime.UtcNow,
+            UserId = userId,
             Status = "Processing",
             CreatedAt = DateTime.UtcNow,
             UpdatedAt = DateTime.UtcNow
@@ -116,6 +118,7 @@ public class DocumentService : IDocumentService
 
     public async Task<BatchIngestResult> IngestBatchAsync(
         IEnumerable<IFormFile> files,
+        Guid userId,
         CancellationToken cancellationToken = default)
     {
         var fileList = files.ToList();
@@ -129,7 +132,7 @@ public class DocumentService : IDocumentService
             await semaphore.WaitAsync(cancellationToken);
             try
             {
-                var documentResult = await IngestAsync(file, cancellationToken: cancellationToken);
+                var documentResult = await IngestAsync(file, userId, cancellationToken: cancellationToken);
                 return documentResult;
             }
             catch (Exception ex)

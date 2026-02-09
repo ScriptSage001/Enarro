@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using System.Text;
 using Enarro.Models.Chat;
 using Enarro.Services;
@@ -11,10 +12,12 @@ public class StreamPost : IEndpoint
     public void MapEndpoint(IEndpointRouteBuilder app)
     {
         app.MapPost("chat/stream", ChatStream)
+                .RequireAuthorization()
                 .WithTags("Chat")
                 .WithSummary("Stream chat responses in real-time using Server-Sent Events")
                 .Produces(StatusCodes.Status200OK, contentType: "text/event-stream")
                 .ProducesProblem(StatusCodes.Status400BadRequest)
+                .ProducesProblem(StatusCodes.Status401Unauthorized)
                 .ProducesProblem(StatusCodes.Status500InternalServerError);
     }
 

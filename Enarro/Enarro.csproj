@@ -40,6 +40,13 @@
         <PackageReference Include="AspNetCore.HealthChecks.NpgSql" Version="9.0.0" />
         <PackageReference Include="AspNetCore.HealthChecks.Redis" Version="9.0.0" />
         <PackageReference Include="AspNetCore.HealthChecks.Uris" Version="9.0.0" />
+        
+        <!-- JWT Authentication -->
+        <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.0" />
+        <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.3.0" />
+        
+        <!-- Password Hashing -->
+        <PackageReference Include="BCrypt.Net-Next" Version="4.0.3" />
     </ItemGroup>
 
     <ItemGroup>

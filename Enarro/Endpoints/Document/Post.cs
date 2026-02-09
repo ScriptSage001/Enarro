@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using Enarro.Models.Document;
 using Enarro.Services;
 
@@ -11,20 +12,24 @@ public class Post : IEndpoint
     {
         app
             .MapPost("ingest", Ingest)
+            .RequireAuthorization()
             .WithTags("Document")
             .WithSummary("Ingest a single document. Supported formats: TXT, PDF, DOCX, XLSX, PPTX, MD, JSON")
             .DisableAntiforgery()
             .Produces<object>(StatusCodes.Status200OK)
             .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status401Unauthorized)
             .ProducesProblem(StatusCodes.Status500InternalServerError);
 
         app
             .MapPost("ingest/batch", IngestBatch)
+            .RequireAuthorization()
             .WithTags("Document")
             .WithSummary("Ingest multiple documents in one operation with parallel processing")
             .DisableAntiforgery()
             .Produces<BatchIngestResult>(StatusCodes.Status200OK)
             .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status401Unauthorized)
             .ProducesProblem(StatusCodes.Status500InternalServerError);
     }
 
@@ -34,6 +39,7 @@ public class Post : IEndpoint
 
     private static async Task<IResult> Ingest(
         IFormFile file,
+        HttpContext httpContext,
         IDocumentService documentService,
         CancellationToken cancellationToken)
     {
@@ -42,7 +48,14 @@ public class Post : IEndpoint
             if (file.Length == 0)
                 return Results.Problem("No file uploaded.", statusCode: 400);
 
-            var result = await documentService.IngestAsync(file, cancellationToken: cancellationToken);
+            // Extract user ID from JWT claims
+            var userIdClaim = httpContext.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(userIdClaim) || !Guid.TryParse(userIdClaim, out var userId))
+            {
+                return Results.Unauthorized();
+            }
+
+            var result = await documentService.IngestAsync(file, userId, cancellationToken: cancellationToken);
 
             return Results.Ok(result);
         }
@@ -54,6 +67,7 @@ public class Post : IEndpoint
 
     private static async Task<IResult> IngestBatch(
         IFormFileCollection files,
+        HttpContext httpContext,
         IDocumentService documentService,
         CancellationToken cancellationToken)
     {
@@ -62,7 +76,14 @@ public class Post : IEndpoint
             if (!files.Any())
                 return Results.Problem("No files uploaded.", statusCode: 400);
 
-            var result = await documentService.IngestBatchAsync(files, cancellationToken);
+            // Extract user ID from JWT claims
+            var userIdClaim = httpContext.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(userIdClaim) || !Guid.TryParse(userIdClaim, out var userId))
+            {
+                return Results.Unauthorized();
+            }
+
+            var result = await documentService.IngestBatchAsync(files, userId, cancellationToken);
 
             return Results.Ok(result);
         }
