@@ -7,8 +7,10 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using Enarro.Data;
 using Enarro.Extensions;
+using Enarro.Models.Search;
 using Enarro.ServiceDefaults;
 using Enarro.Services;
+using Enarro.Services.Search;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
@@ -134,6 +136,14 @@ try
     builder.Services.AddScoped<IConversationService, ConversationService>();
     builder.Services.AddScoped<IChatService, ChatService>();
     builder.Services.AddScoped<IDocumentService, DocumentService>();
+    
+    // Register search services
+    builder.Services.AddSingleton<IKeywordSearchService, KeywordSearchService>();
+    builder.Services.AddScoped<IHybridSearchService, HybridSearchService>();
+    
+    // Configure search options
+    builder.Services.Configure<HybridSearchOptions>(
+        builder.Configuration.GetSection("RAGConfigs:HybridSearch"));
 
     builder.Services.AddOpenApi();
     

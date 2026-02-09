@@ -4,6 +4,7 @@ using Enarro.Data;
 using Enarro.Data.Entities;
 using Enarro.Models.Document;
 using Enarro.Models.Common;
+using Enarro.Services.Search;
 
 namespace Enarro.Services;
 
@@ -11,6 +12,7 @@ public class DocumentService : IDocumentService
 {
     private readonly IKernelMemory _memory;
     private readonly EnarroDbContext _dbContext;
+    private readonly IKeywordSearchService _keywordSearch;
     private readonly ILogger<DocumentService> _logger;
     private readonly IConfiguration _config;
     private readonly string _index;
@@ -19,11 +21,13 @@ public class DocumentService : IDocumentService
     public DocumentService(
         IKernelMemory memory,
         EnarroDbContext dbContext,
+        IKeywordSearchService keywordSearch,
         IConfiguration config,
         ILogger<DocumentService> logger)
     {
         _memory = memory;
         _dbContext = dbContext;
+        _keywordSearch = keywordSearch;
         _config = config;
         _logger = logger;
         _index = config["RAGConfigs:IndexName"] ?? "rag-test";
@@ -92,7 +96,32 @@ public class DocumentService : IDocumentService
                 index: _index,
                 cancellationToken: cancellationToken);
 
-            // 3. Update status to Indexed
+            // 3. Extract text and index for keyword search
+            try
+            {
+                // Read file content for keyword indexing
+                using var memoryStream = new MemoryStream();
+                file.OpenReadStream().CopyTo(memoryStream);
+                var content = System.Text.Encoding.UTF8.GetString(memoryStream.ToArray());
+                
+                await _keywordSearch.IndexDocumentAsync(
+                    documentId.ToString(),
+                    content,
+                    cancellationToken);
+                
+                _logger.LogInformation(
+                    "Indexed document {DocumentId} for keyword search",
+                    documentId);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(
+                    ex,
+                    "Failed to index document {DocumentId} for keyword search, continuing with vector search only",
+                    documentId);
+            }
+
+            // 4. Update status to Indexed
             documentEntity.Status = "Indexed";
             documentEntity.UpdatedAt = DateTime.UtcNow;
             await _dbContext.SaveChangesAsync(cancellationToken);
