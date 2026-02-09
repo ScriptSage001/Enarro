@@ -130,10 +130,14 @@ try
     #endregion Add JWT Authentication
 
     // Register application services
-    builder.Services.AddScoped<IAuthService, AuthService>();
-    builder.Services.AddScoped<IConversationService, ConversationService>();
-    builder.Services.AddScoped<IChatService, ChatService>();
     builder.Services.AddScoped<IDocumentService, DocumentService>();
+    builder.Services.AddScoped<IChatService, ChatService>();
+    builder.Services.AddScoped<IConversationService, ConversationService>();
+    builder.Services.AddScoped<IAuthService, AuthService>();
+    
+    // Register global exception handler
+    builder.Services.AddExceptionHandler<Enarro.Middleware.GlobalExceptionHandler>();
+    builder.Services.AddProblemDetails();
 
     builder.Services.AddOpenApi();
     
@@ -193,6 +197,9 @@ var apiVersionSet = app
 var versionedGroup = app
                         .MapGroup("api/v{version:apiVersion}")
                         .WithApiVersionSet(apiVersionSet);
+
+// Add global exception handler
+app.UseExceptionHandler();
 
 // Add authentication and authorization middleware
 app.UseAuthentication();

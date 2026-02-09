@@ -10,6 +10,7 @@
 
     <ItemGroup>
         <PackageReference Include="Asp.Versioning.Mvc.ApiExplorer" Version="8.1.1" />
+        <PackageReference Include="CoreKernel.Functional" Version="1.0.0" />
         <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.2" />
         <PackageReference Include="Microsoft.Extensions.VectorData.Abstractions" Version="9.7.0" />
         <PackageReference Include="Microsoft.KernelMemory.AI.Ollama" Version="0.98.250508.3" />
