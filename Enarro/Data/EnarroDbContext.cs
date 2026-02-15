@@ -8,13 +8,16 @@ namespace Enarro.Data;
 /// </summary>
 public class EnarroDbContext : DbContext
 {
-    public EnarroDbContext(DbContextOptions<EnarroDbContext> options) : base(options) { }
+    public EnarroDbContext(DbContextOptions<EnarroDbContext> options) 
+        : base(options)
+    {
+    }
     
     public DbSet<DocumentEntity> Documents { get; set; }
     public DbSet<DocumentTagEntity> DocumentTags { get; set; }
     public DbSet<UserEntity> Users { get; set; }
     public DbSet<RefreshTokenEntity> RefreshTokens { get; set; }
-    
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
@@ -42,6 +45,9 @@ public class EnarroDbContext : DbContext
                 
             entity.Property(e => e.ErrorMessage)
                 .HasMaxLength(2000);
+
+            entity.Property(e => e.CreatedBy).HasMaxLength(100);
+            entity.Property(e => e.LastModifiedBy).HasMaxLength(100);
             
             // Indexes
             entity.HasIndex(e => e.Status)
@@ -64,6 +70,9 @@ public class EnarroDbContext : DbContext
             entity.Property(e => e.TagValue)
                 .HasMaxLength(500)
                 .IsRequired();
+
+            entity.Property(e => e.CreatedBy).HasMaxLength(100);
+            entity.Property(e => e.LastModifiedBy).HasMaxLength(100);
             
             // Relationship
             entity.HasOne(e => e.Document)
@@ -102,6 +111,9 @@ public class EnarroDbContext : DbContext
                 .HasMaxLength(50)
                 .IsRequired()
                 .HasDefaultValue("User");
+
+            entity.Property(e => e.CreatedBy).HasMaxLength(100);
+            entity.Property(e => e.LastModifiedBy).HasMaxLength(100);
             
             // Unique index on email
             entity.HasIndex(e => e.Email)
@@ -121,6 +133,9 @@ public class EnarroDbContext : DbContext
             entity.Property(e => e.Token)
                 .HasMaxLength(500)
                 .IsRequired();
+
+            entity.Property(e => e.CreatedBy).HasMaxLength(100);
+            entity.Property(e => e.LastModifiedBy).HasMaxLength(100);
             
             // Relationship
             entity.HasOne(e => e.User)

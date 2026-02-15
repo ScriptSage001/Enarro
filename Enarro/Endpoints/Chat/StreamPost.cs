@@ -1,5 +1,4 @@
-using System.Security.Claims;
-using System.Text;
+using Enarro.Common.Errors;
 using Enarro.Models.Chat;
 using Enarro.Services;
 
@@ -31,35 +30,29 @@ public class StreamPost : IEndpoint
         HttpContext context,
         CancellationToken cancellationToken)
     {
-        try
+        // Validate input before starting the stream
+        if (string.IsNullOrWhiteSpace(request.Message))
         {
-            if (string.IsNullOrWhiteSpace(request.Message))
-            {
-                return Results.Problem("Message cannot be empty.", statusCode: 400);
-            }
+            return Results.BadRequest(new { code = ErrorCodes.ChatMessageEmpty, error = "Message cannot be empty" });
+        }
 
-            // Set headers for Server-Sent Events
-            context.Response.Headers.Append("Content-Type", "text/event-stream");
-            context.Response.Headers.Append("Cache-Control", "no-cache");
-            context.Response.Headers.Append("Connection", "keep-alive");
+        // Set headers for Server-Sent Events
+        context.Response.Headers.Append("Content-Type", "text/event-stream");
+        context.Response.Headers.Append("Cache-Control", "no-cache");
+        context.Response.Headers.Append("Connection", "keep-alive");
 
-            await foreach (var chunk in chatService.ChatStreamAsync(request, cancellationToken))
-            {
-                var data = $"data: {chunk}\n\n";
-                await context.Response.WriteAsync(data, cancellationToken);
-                await context.Response.Body.FlushAsync(cancellationToken);
-            }
-
-            // Send completion event
-            await context.Response.WriteAsync("data: [DONE]\n\n", cancellationToken);
+        await foreach (var chunk in chatService.ChatStreamAsync(request, cancellationToken))
+        {
+            var data = $"data: {chunk}\n\n";
+            await context.Response.WriteAsync(data, cancellationToken);
             await context.Response.Body.FlushAsync(cancellationToken);
+        }
 
-            return Results.Empty;
-        }
-        catch (Exception e)
-        {
-            return Results.Problem(e.Message, statusCode: 500);
-        }
+        // Send completion event
+        await context.Response.WriteAsync("data: [DONE]\n\n", cancellationToken);
+        await context.Response.Body.FlushAsync(cancellationToken);
+
+        return Results.Empty;
     }
 
     #endregion Private Methods

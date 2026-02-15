@@ -1,4 +1,4 @@
-using System.Security.Claims;
+using Enarro.Extensions;
 using Enarro.Models.Chat;
 using Enarro.Services;
 
@@ -29,26 +29,8 @@ public class Post : IEndpoint
         IChatService chatService,
         CancellationToken cancellationToken)
     {
-        try
-        {
-            if (string.IsNullOrWhiteSpace(request.Message))
-            {
-                return Results.Problem("Message cannot be empty.", statusCode: 400);
-            }
-
-            if (request.MinRelevance < 0 || request.MinRelevance > 1)
-            {
-                return Results.Problem("MinRelevance must be between 0 and 1.", statusCode: 400);
-            }
-
-            var result = await chatService.ChatAsync(request, cancellationToken);
-
-            return Results.Ok(result);
-        }
-        catch (Exception e)
-        {
-            return Results.Problem(e.Message, statusCode: 500);
-        }
+        var result = await chatService.ChatAsync(request, cancellationToken);
+        return result.ToHttpResult();
     }
 
     #endregion Private Methods

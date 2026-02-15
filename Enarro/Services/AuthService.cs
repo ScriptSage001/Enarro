@@ -5,6 +5,8 @@ using System.Text;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using BCrypt.Net;
+using CoreKernel.Functional.Results;
+using Enarro.Common.Errors;
 using Enarro.Data;
 using Enarro.Data.Entities;
 using Enarro.Models.Auth;
@@ -16,7 +18,7 @@ namespace Enarro.Services;
 /// </summary>
 public class AuthService : IAuthService
 {
-    private readonly EnarroDbContext _dbContext;
+    private readonly IUnitOfWork _unitOfWork;
     private readonly IConfiguration _configuration;
     private readonly ILogger<AuthService> _logger;
     private readonly string _jwtSecret;
@@ -26,11 +28,11 @@ public class AuthService : IAuthService
     private readonly int _refreshTokenExpirationDays;
 
     public AuthService(
-        EnarroDbContext dbContext,
+        IUnitOfWork unitOfWork,
         IConfiguration configuration,
         ILogger<AuthService> logger)
     {
-        _dbContext = dbContext;
+        _unitOfWork = unitOfWork;
         _configuration = configuration;
         _logger = logger;
         
@@ -42,19 +44,23 @@ public class AuthService : IAuthService
         _refreshTokenExpirationDays = configuration.GetValue<int>("JwtSettings:RefreshTokenExpirationDays", 7);
     }
 
-    public async Task<AuthResponse> RegisterAsync(RegisterRequest request, CancellationToken cancellationToken = default)
+    public async Task<Result<AuthResponse>> RegisterAsync(RegisterRequest request, CancellationToken cancellationToken = default)
     {
         // Validate email is unique
-        var existingUser = await _dbContext.Users
-            .FirstOrDefaultAsync(u => u.Email == request.Email, cancellationToken);
+        var existingUser = await _unitOfWork.Users
+            .FirstOrDefaultAsync(u => u.Email == request.Email, cancellationToken: cancellationToken);
             
         if (existingUser != null)
         {
-            throw new InvalidOperationException("A user with this email already exists");
+            return Result.Failure<AuthResponse>(Errors.Auth.EmailAlreadyExists(request.Email));
         }
 
         // Validate password strength
-        ValidatePassword(request.Password);
+        var passwordValidation = ValidatePassword(request.Password);
+        if (passwordValidation.IsFailure)
+        {
+            return Result.Failure<AuthResponse>(passwordValidation.Error);
+        }
 
         // Hash password
         var passwordHash = BCrypt.Net.BCrypt.HashPassword(request.Password, workFactor: 12);
@@ -68,83 +74,82 @@ public class AuthService : IAuthService
             FirstName = request.FirstName,
             LastName = request.LastName,
             Role = "User",
-            IsActive = true,
-            CreatedAt = DateTime.UtcNow,
-            UpdatedAt = DateTime.UtcNow
+            IsActive = true
         };
 
-        _dbContext.Users.Add(user);
-        await _dbContext.SaveChangesAsync(cancellationToken);
+        _unitOfWork.Users.Add(user);
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         _logger.LogInformation("User registered successfully: {Email}", user.Email);
 
         // Generate tokens
-        return await GenerateAuthResponseAsync(user, cancellationToken);
+        return Result.Success(await GenerateAuthResponseAsync(user, cancellationToken));
     }
 
-    public async Task<AuthResponse> LoginAsync(LoginRequest request, CancellationToken cancellationToken = default)
+    public async Task<Result<AuthResponse>> LoginAsync(LoginRequest request, CancellationToken cancellationToken = default)
     {
         // Find user by email
-        var user = await _dbContext.Users
-            .FirstOrDefaultAsync(u => u.Email == request.Email.ToLowerInvariant(), cancellationToken);
+        var user = await _unitOfWork.Users
+            .FirstOrDefaultAsync(u => u.Email == request.Email.ToLowerInvariant(), cancellationToken: cancellationToken);
 
         if (user == null)
         {
-            throw new UnauthorizedAccessException("Invalid email or password");
+            return Result.Failure<AuthResponse>(Errors.Auth.InvalidCredentials());
         }
 
         // Verify password
         if (!BCrypt.Net.BCrypt.Verify(request.Password, user.PasswordHash))
         {
             _logger.LogWarning("Failed login attempt for user: {Email}", request.Email);
-            throw new UnauthorizedAccessException("Invalid email or password");
+            return Result.Failure<AuthResponse>(Errors.Auth.InvalidCredentials());
         }
 
         // Check if user is active
         if (!user.IsActive)
         {
-            throw new UnauthorizedAccessException("User account is inactive");
+            return Result.Failure<AuthResponse>(Errors.Auth.UserInactive());
         }
 
         // Update last login
         user.LastLoginAt = DateTime.UtcNow;
-        user.UpdatedAt = DateTime.UtcNow;
-        await _dbContext.SaveChangesAsync(cancellationToken);
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         _logger.LogInformation("User logged in successfully: {Email}", user.Email);
 
         // Generate tokens
-        return await GenerateAuthResponseAsync(user, cancellationToken);
+        return Result.Success(await GenerateAuthResponseAsync(user, cancellationToken));
     }
 
-    public async Task<AuthResponse> RefreshTokenAsync(string refreshToken, CancellationToken cancellationToken = default)
+    public async Task<Result<AuthResponse>> RefreshTokenAsync(string refreshToken, CancellationToken cancellationToken = default)
     {
         // Find refresh token
-        var tokenEntity = await _dbContext.RefreshTokens
-            .Include(rt => rt.User)
-            .FirstOrDefaultAsync(rt => rt.Token == refreshToken, cancellationToken);
+        var tokenEntity = await _unitOfWork.RefreshTokens
+            .FirstOrDefaultAsync(
+                rt => rt.Token == refreshToken,
+                include: q => q.Include(rt => rt.User),
+                cancellationToken: cancellationToken);
 
         if (tokenEntity == null)
         {
-            throw new UnauthorizedAccessException("Invalid refresh token");
+            return Result.Failure<AuthResponse>(Errors.Auth.InvalidToken());
         }
 
         // Check if token is expired
         if (tokenEntity.ExpiresAt < DateTime.UtcNow)
         {
-            throw new UnauthorizedAccessException("Refresh token has expired");
+            return Result.Failure<AuthResponse>(Errors.Auth.TokenExpired());
         }
 
         // Check if token is revoked
         if (tokenEntity.IsRevoked)
         {
-            throw new UnauthorizedAccessException("Refresh token has been revoked");
+            return Result.Failure<AuthResponse>(Errors.Auth.InvalidToken());
         }
 
         // Check if user is active
         if (!tokenEntity.User.IsActive)
         {
-            throw new UnauthorizedAccessException("User account is inactive");
+            return Result.Failure<AuthResponse>(Errors.Auth.UserInactive());
         }
 
         // Revoke old refresh token
@@ -155,43 +160,44 @@ public class AuthService : IAuthService
         // Generate new tokens
         var authResponse = await GenerateAuthResponseAsync(tokenEntity.User, cancellationToken);
 
-        await _dbContext.SaveChangesAsync(cancellationToken);
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         _logger.LogInformation("Refresh token used for user: {Email}", tokenEntity.User.Email);
 
-        return authResponse;
+        return Result.Success(authResponse);
     }
 
-    public async Task RevokeTokenAsync(string refreshToken, string? reason = null, CancellationToken cancellationToken = default)
+    public async Task<Result> RevokeTokenAsync(string refreshToken, string? reason = null, CancellationToken cancellationToken = default)
     {
-        var tokenEntity = await _dbContext.RefreshTokens
-            .FirstOrDefaultAsync(rt => rt.Token == refreshToken, cancellationToken);
+        var tokenEntity = await _unitOfWork.RefreshTokens
+            .FirstOrDefaultAsync(rt => rt.Token == refreshToken, cancellationToken: cancellationToken);
 
         if (tokenEntity == null)
         {
-            throw new InvalidOperationException("Refresh token not found");
+            return Result.Failure(Errors.Auth.TokenNotFound());
         }
 
         tokenEntity.IsRevoked = true;
         tokenEntity.RevokedAt = DateTime.UtcNow;
         tokenEntity.RevokedReason = reason ?? "Manually revoked";
 
-        await _dbContext.SaveChangesAsync(cancellationToken);
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         _logger.LogInformation("Refresh token revoked: {Reason}", reason);
+        return Result.Success();
     }
 
-    public async Task<UserInfo?> GetUserByIdAsync(Guid userId, CancellationToken cancellationToken = default)
+    public async Task<Result<UserInfo>> GetUserByIdAsync(Guid userId, CancellationToken cancellationToken = default)
     {
-        var user = await _dbContext.Users
-            .FirstOrDefaultAsync(u => u.Id == userId, cancellationToken);
+        var user = await _unitOfWork.Users
+            .FirstOrDefaultAsync(u => u.Id == userId, cancellationToken: cancellationToken);
 
         if (user == null)
         {
-            return null;
+            return Result.Failure<UserInfo>(Errors.Auth.UserNotFound(userId.ToString()));
         }
 
-        return new UserInfo(
+        return Result.Success(new UserInfo(
             user.Id,
             user.Email,
             user.FirstName,
@@ -200,100 +206,70 @@ public class AuthService : IAuthService
             user.IsActive,
             user.CreatedAt,
             user.LastLoginAt
-        );
+        ));
     }
 
-    public Task<bool> ValidateTokenAsync(string token)
-    {
-        try
-        {
-            var tokenHandler = new JwtSecurityTokenHandler();
-            var key = Encoding.UTF8.GetBytes(_jwtSecret);
-
-            tokenHandler.ValidateToken(token, new TokenValidationParameters
-            {
-                ValidateIssuerSigningKey = true,
-                IssuerSigningKey = new SymmetricSecurityKey(key),
-                ValidateIssuer = true,
-                ValidIssuer = _jwtIssuer,
-                ValidateAudience = true,
-                ValidAudience = _jwtAudience,
-                ValidateLifetime = true,
-                ClockSkew = TimeSpan.Zero
-            }, out _);
-
-            return Task.FromResult(true);
-        }
-        catch
-        {
-            return Task.FromResult(false);
-        }
-    }
+    #region Private Methods
 
     private async Task<AuthResponse> GenerateAuthResponseAsync(UserEntity user, CancellationToken cancellationToken)
     {
-        // Generate access token
-        var accessToken = GenerateAccessToken(user);
-        var expiresAt = DateTime.UtcNow.AddMinutes(_accessTokenExpirationMinutes);
-
-        // Generate refresh token
+        var accessToken = GenerateJwtToken(user);
         var refreshToken = GenerateRefreshToken();
+
+        // Save refresh token
         var refreshTokenEntity = new RefreshTokenEntity
         {
             Id = Guid.NewGuid(),
             UserId = user.Id,
             Token = refreshToken,
             ExpiresAt = DateTime.UtcNow.AddDays(_refreshTokenExpirationDays),
-            CreatedAt = DateTime.UtcNow,
             IsRevoked = false
         };
 
-        _dbContext.RefreshTokens.Add(refreshTokenEntity);
-        await _dbContext.SaveChangesAsync(cancellationToken);
+        _unitOfWork.RefreshTokens.Add(refreshTokenEntity);
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-        var userInfo = new UserInfo(
-            user.Id,
-            user.Email,
-            user.FirstName,
-            user.LastName,
-            user.Role,
-            user.IsActive,
-            user.CreatedAt,
-            user.LastLoginAt
+        return new AuthResponse(
+            AccessToken: accessToken,
+            RefreshToken: refreshToken,
+            ExpiresAt: DateTime.UtcNow.AddMinutes(_accessTokenExpirationMinutes),
+            User: new UserInfo(
+                user.Id,
+                user.Email,
+                user.FirstName,
+                user.LastName,
+                user.Role,
+                user.IsActive,
+                user.CreatedAt,
+                user.LastLoginAt
+            )
         );
-
-        return new AuthResponse(accessToken, refreshToken, expiresAt, userInfo);
     }
 
-    private string GenerateAccessToken(UserEntity user)
+    private string GenerateJwtToken(UserEntity user)
     {
-        var tokenHandler = new JwtSecurityTokenHandler();
-        var key = Encoding.UTF8.GetBytes(_jwtSecret);
+        var securityKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_jwtSecret));
+        var credentials = new SigningCredentials(securityKey, SecurityAlgorithms.HmacSha256);
 
-        var claims = new List<Claim>
+        var claims = new[]
         {
-            new(ClaimTypes.NameIdentifier, user.Id.ToString()),
-            new(ClaimTypes.Email, user.Email),
-            new(ClaimTypes.GivenName, user.FirstName),
-            new(ClaimTypes.Surname, user.LastName),
-            new(ClaimTypes.Role, user.Role),
-            new("userId", user.Id.ToString()),
-            new("email", user.Email)
+            new Claim(JwtRegisteredClaimNames.Sub, user.Id.ToString()),
+            new Claim(JwtRegisteredClaimNames.Email, user.Email),
+            new Claim(JwtRegisteredClaimNames.GivenName, user.FirstName),
+            new Claim(JwtRegisteredClaimNames.FamilyName, user.LastName),
+            new Claim(ClaimTypes.Role, user.Role),
+            new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
         };
 
-        var tokenDescriptor = new SecurityTokenDescriptor
-        {
-            Subject = new ClaimsIdentity(claims),
-            Expires = DateTime.UtcNow.AddMinutes(_accessTokenExpirationMinutes),
-            Issuer = _jwtIssuer,
-            Audience = _jwtAudience,
-            SigningCredentials = new SigningCredentials(
-                new SymmetricSecurityKey(key),
-                SecurityAlgorithms.HmacSha256Signature)
-        };
+        var token = new JwtSecurityToken(
+            issuer: _jwtIssuer,
+            audience: _jwtAudience,
+            claims: claims,
+            expires: DateTime.UtcNow.AddMinutes(_accessTokenExpirationMinutes),
+            signingCredentials: credentials
+        );
 
-        var token = tokenHandler.CreateToken(tokenDescriptor);
-        return tokenHandler.WriteToken(token);
+        return new JwtSecurityTokenHandler().WriteToken(token);
     }
 
     private static string GenerateRefreshToken()
@@ -304,36 +280,25 @@ public class AuthService : IAuthService
         return Convert.ToBase64String(randomBytes);
     }
 
-    private static void ValidatePassword(string password)
+    private Result ValidatePassword(string password)
     {
         if (string.IsNullOrWhiteSpace(password))
-        {
-            throw new ArgumentException("Password is required");
-        }
+            return Result.Failure(Errors.Auth.WeakPassword("Password is required"));
 
         if (password.Length < 8)
-        {
-            throw new ArgumentException("Password must be at least 8 characters long");
-        }
+            return Result.Failure(Errors.Auth.WeakPassword("Password must be at least 8 characters"));
 
         if (!password.Any(char.IsUpper))
-        {
-            throw new ArgumentException("Password must contain at least one uppercase letter");
-        }
+            return Result.Failure(Errors.Auth.WeakPassword("Password must contain at least one uppercase letter"));
 
         if (!password.Any(char.IsLower))
-        {
-            throw new ArgumentException("Password must contain at least one lowercase letter");
-        }
+            return Result.Failure(Errors.Auth.WeakPassword("Password must contain at least one lowercase letter"));
 
         if (!password.Any(char.IsDigit))
-        {
-            throw new ArgumentException("Password must contain at least one number");
-        }
+            return Result.Failure(Errors.Auth.WeakPassword("Password must contain at least one digit"));
 
-        if (!password.Any(ch => !char.IsLetterOrDigit(ch)))
-        {
-            throw new ArgumentException("Password must contain at least one special character");
-        }
+        return Result.Success();
     }
+
+    #endregion
 }

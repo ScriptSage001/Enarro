@@ -15,7 +15,7 @@ public class EnarroDbContextFactory : IDesignTimeDbContextFactory<EnarroDbContex
         // Use a default connection string for migrations
         // This will be overridden at runtime by Aspire
         optionsBuilder.UseNpgsql("Host=localhost;Database=enarro_dev;Username=postgres;Password=postgres");
-        
+
         return new EnarroDbContext(optionsBuilder.Options);
     }
 }

@@ -1,4 +1,4 @@
-using System.Security.Claims;
+using Enarro.Extensions;
 using Enarro.Services;
 
 namespace Enarro.Endpoints.Document;
@@ -29,19 +29,8 @@ public class Delete : IEndpoint
         IDocumentService documentService,
         CancellationToken cancellationToken)
     {
-        try
-        {
-            var success = await documentService.DeleteDocumentAsync(id, cancellationToken);
-            
-            if (!success)
-                return Results.Problem("Failed to delete document or document not found.", statusCode: 404);
-
-            return Results.Ok(new { DocumentId = id, Status = "Deleted" });
-        }
-        catch (Exception e)
-        {
-            return Results.Problem(e.Message, statusCode: 500);
-        }
+        var result = await documentService.DeleteDocumentAsync(id, cancellationToken);
+        return result.ToHttpResult(() => Results.Ok(new { DocumentId = id, Status = "Deleted" }));
     }
 
     #endregion Private Methods
