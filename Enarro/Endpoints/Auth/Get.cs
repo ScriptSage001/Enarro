@@ -1,6 +1,7 @@
+using Enarro.Common;
+using Enarro.Extensions;
 using Enarro.Models.Auth;
 using Enarro.Services;
-using System.Security.Claims;
 
 namespace Enarro.Endpoints.Auth;
 
@@ -22,23 +23,15 @@ public class Get : IEndpoint
 
     #region Private Methods
 
-    private async Task<IResult> Me(HttpContext httpContext, IAuthService authService, CancellationToken cancellationToken)
+    private static async Task<IResult> Me(IUserContext userContext, IAuthService authService, CancellationToken cancellationToken)
     {
-        var userIdClaim = httpContext.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-
-        if (string.IsNullOrEmpty(userIdClaim) || !Guid.TryParse(userIdClaim, out var userId))
+        if (!userContext.IsAuthenticated || userContext.UserId is null)
         {
             return Results.Unauthorized();
         }
 
-        var userInfo = await authService.GetUserByIdAsync(userId, cancellationToken);
-
-        if (userInfo == null)
-        {
-            return Results.NotFound(new { error = "User not found" });
-        }
-
-        return Results.Ok(userInfo);
+        var result = await authService.GetUserByIdAsync(userContext.UserId.Value, cancellationToken);
+        return result.ToHttpResult();
     }
 
     #endregion Private Methods

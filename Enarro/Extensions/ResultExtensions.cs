@@ -1,69 +1,69 @@
+using CoreKernel.Functional.Extensions;
+using CoreKernel.Functional.Results;
+
 namespace Enarro.Extensions;
 
-using Enarro.Common.Errors;
-
 /// <summary>
-/// Extension methods for Result types
+/// Extension methods for mapping Result types to HTTP IResult responses
 /// </summary>
 public static class ResultExtensions
 {
     /// <summary>
-    /// Converts a Result{T} to an HTTP IResult
+    /// Converts a Result{T} to an HTTP IResult, returning OK with the value on success
     /// </summary>
-    public static IResult ToHttpResult<T>(this CoreKernel.Functional.Result<T> result)
+    public static IResult ToHttpResult<T>(this Result<T> result)
     {
         return result.Match(
             onSuccess: value => Results.Ok(value),
-            onFailure: error => MapErrorToHttpResult(error.Message)
+            onFailure: r => MapErrorToHttpResult(r.Error)
         );
     }
     
     /// <summary>
     /// Converts a non-generic Result to an HTTP IResult with OK response
     /// </summary>
-    public static IResult ToHttpOkResult<T>(this CoreKernel.Functional.Result<T> result)
+    public static IResult ToHttpResult(this Result result)
     {
         return result.Match(
-            onSuccess: _ => Results.Ok(),
-            onFailure: error => MapErrorToHttpResult(error.Message)
+            onSuccess: () => Results.Ok(),
+            onFailure: r => MapErrorToHttpResult(r.Error)
         );
     }
     
     /// <summary>
-    /// Maps an error message to the appropriate HTTP status code and response
+    /// Converts a Result{T} to an HTTP IResult with a custom success response
     /// </summary>
-    private static IResult MapErrorToHttpResult(string errorMessage)
+    public static IResult ToHttpResult<T>(this Result<T> result, Func<T, IResult> onSuccess)
     {
-        // Check error message patterns to determine HTTP status code
-        if (errorMessage.Contains("Invalid email or password") ||
-            errorMessage.Contains("User account is inactive") ||
-            errorMessage.Contains("Invalid or expired token") ||
-            errorMessage.Contains("Token has expired") ||
-            errorMessage.Contains("Refresh token not found") ||
-            errorMessage.Contains("Unauthorized access"))
+        return result.Match(
+            onSuccess: onSuccess,
+            onFailure: r => MapErrorToHttpResult(r.Error)
+        );
+    }
+    
+    /// <summary>
+    /// Converts a non-generic Result to an HTTP IResult with a custom success response
+    /// </summary>
+    public static IResult ToHttpResult(this Result result, Func<IResult> onSuccess)
+    {
+        return result.Match(
+            onSuccess: onSuccess,
+            onFailure: r => MapErrorToHttpResult(r.Error)
+        );
+    }
+
+    /// <summary>
+    /// Maps an Error to the appropriate HTTP status code and response using ErrorType
+    /// </summary>
+    private static IResult MapErrorToHttpResult(Error error)
+    {
+        return error.Type switch
         {
-            return Results.Unauthorized();
-        }
-        
-        if (errorMessage.Contains("already registered"))
-        {
-            return Results.Conflict(new { error = errorMessage });
-        }
-        
-        if (errorMessage.Contains("not found"))
-        {
-            return Results.NotFound(new { error = errorMessage });
-        }
-        
-        if (errorMessage.Contains("must") ||
-            errorMessage.Contains("cannot be empty") ||
-            errorMessage.Contains("Invalid document format") ||
-            errorMessage.Contains("exceeds maximum size"))
-        {
-            return Results.BadRequest(new { error = errorMessage });
-        }
-        
-        // Default to 500 Internal Server Error
-        return Results.Problem(errorMessage, statusCode: 500);
+            ErrorType.Validation => Results.BadRequest(new { code = error.Code, error = error.Message }),
+            ErrorType.Unauthorized => Results.Unauthorized(),
+            ErrorType.NotFound => Results.NotFound(new { code = error.Code, error = error.Message }),
+            ErrorType.Conflict => Results.Conflict(new { code = error.Code, error = error.Message }),
+            _ => Results.Problem(error.Message, statusCode: 500)
+        };
     }
 }

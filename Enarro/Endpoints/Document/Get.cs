@@ -1,4 +1,4 @@
-using System.Security.Claims;
+using Enarro.Extensions;
 using Enarro.Models.Document;
 using Enarro.Services;
 
@@ -41,15 +41,8 @@ public class Get : IEndpoint
         string? tag = null,
         CancellationToken cancellationToken = default)
     {
-        try
-        {
-            var result = await documentService.ListDocumentsAsync(page, pageSize, tag, cancellationToken);
-            return Results.Ok(result);
-        }
-        catch (Exception e)
-        {
-            return Results.Problem(e.Message, statusCode: 500);
-        }
+        var result = await documentService.ListDocumentsAsync(page, pageSize, tag, cancellationToken);
+        return result.ToHttpResult();
     }
 
     private static async Task<IResult> GetDocument(
@@ -57,19 +50,8 @@ public class Get : IEndpoint
         IDocumentService documentService,
         CancellationToken cancellationToken)
     {
-        try
-        {
-            var document = await documentService.GetDocumentAsync(id, cancellationToken);
-            
-            if (document == null)
-                return Results.Problem("Document not found.", statusCode: 404);
-
-            return Results.Ok(document);
-        }
-        catch (Exception e)
-        {
-            return Results.Problem(e.Message, statusCode: 500);
-        }
+        var result = await documentService.GetDocumentAsync(id, cancellationToken);
+        return result.ToHttpResult();
     }
 
     #endregion Private Methods

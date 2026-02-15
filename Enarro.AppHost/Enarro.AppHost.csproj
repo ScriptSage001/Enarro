@@ -9,9 +9,11 @@
     </PropertyGroup>
 
     <ItemGroup>
-      <PackageReference Include="Aspire.Hosting.Qdrant" Version="13.1.0" />
-      <PackageReference Include="Aspire.Hosting.PostgreSQL" Version="13.1.0" />
-      <PackageReference Include="Aspire.Hosting.Redis" Version="13.1.0" />
+      <PackageReference Include="Aspire.Hosting.Qdrant" Version="13.1.1" />
+      <PackageReference Include="Aspire.Hosting.PostgreSQL" Version="13.1.1" />
+      <PackageReference Include="Aspire.Hosting.Redis" Version="13.1.1" />
+      <PackageReference Include="Aspire.Npgsql.EntityFrameworkCore.PostgreSQL" Version="13.1.1" />
+      <PackageReference Include="Aspire.StackExchange.Redis.DistributedCaching" Version="13.1.1" />
       <PackageReference Include="CommunityToolkit.Aspire.Hosting.Ollama" Version="13.1.2-beta.515" />
     </ItemGroup>
 

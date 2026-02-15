@@ -1,4 +1,4 @@
-using System.Security.Claims;
+using Enarro.Extensions;
 using Enarro.Models.Document;
 using Enarro.Services;
 
@@ -39,58 +39,20 @@ public class Post : IEndpoint
 
     private static async Task<IResult> Ingest(
         IFormFile file,
-        HttpContext httpContext,
         IDocumentService documentService,
         CancellationToken cancellationToken)
     {
-        try
-        {
-            if (file.Length == 0)
-                return Results.Problem("No file uploaded.", statusCode: 400);
-
-            // Extract user ID from JWT claims
-            var userIdClaim = httpContext.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-            if (string.IsNullOrEmpty(userIdClaim) || !Guid.TryParse(userIdClaim, out var userId))
-            {
-                return Results.Unauthorized();
-            }
-
-            var result = await documentService.IngestAsync(file, userId, cancellationToken: cancellationToken);
-
-            return Results.Ok(result);
-        }
-        catch (Exception e)
-        {
-            return Results.Problem(e.Message, statusCode: 500);
-        }
+        var result = await documentService.IngestAsync(file, cancellationToken: cancellationToken);
+        return result.ToHttpResult();
     }
 
     private static async Task<IResult> IngestBatch(
         IFormFileCollection files,
-        HttpContext httpContext,
         IDocumentService documentService,
         CancellationToken cancellationToken)
     {
-        try
-        {
-            if (!files.Any())
-                return Results.Problem("No files uploaded.", statusCode: 400);
-
-            // Extract user ID from JWT claims
-            var userIdClaim = httpContext.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-            if (string.IsNullOrEmpty(userIdClaim) || !Guid.TryParse(userIdClaim, out var userId))
-            {
-                return Results.Unauthorized();
-            }
-
-            var result = await documentService.IngestBatchAsync(files, userId, cancellationToken);
-
-            return Results.Ok(result);
-        }
-        catch (Exception e)
-        {
-            return Results.Problem(e.Message, statusCode: 500);
-        }
+        var result = await documentService.IngestBatchAsync(files, cancellationToken);
+        return result.ToHttpResult();
     }
 
     #endregion Private Methods

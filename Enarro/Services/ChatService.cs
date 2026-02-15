@@ -1,6 +1,9 @@
 using System.Runtime.CompilerServices;
 using System.Text;
 using Microsoft.KernelMemory;
+using CoreKernel.Functional.Results;
+using Enarro.Common;
+using Enarro.Common.Errors;
 using Enarro.Models.Chat;
 
 namespace Enarro.Services;
@@ -9,6 +12,7 @@ public class ChatService : IChatService
 {
     private readonly IKernelMemory _memory;
     private readonly IConversationService _conversationService;
+    private readonly IUserContext _userContext;
     private readonly ILogger<ChatService> _logger;
     private readonly string _index;
     private readonly int _maxHistoryMessages;
@@ -16,64 +20,92 @@ public class ChatService : IChatService
     public ChatService(
         IKernelMemory memory,
         IConversationService conversationService,
+        IUserContext userContext,
         IConfiguration config,
         ILogger<ChatService> logger)
     {
         _memory = memory;
         _conversationService = conversationService;
+        _userContext = userContext;
         _logger = logger;
         _index = config["RAGConfigs:IndexName"] ?? "rag-test";
         _maxHistoryMessages = config.GetValue<int>("RAGConfigs:Conversation:MaxHistoryMessages", 10);
     }
 
-    public async Task<ChatResponse> ChatAsync(ChatRequest request, CancellationToken cancellationToken)
+    public async Task<Result<ChatResponse>> ChatAsync(ChatRequest request, CancellationToken cancellationToken)
     {
-        // 1. Ensure session exists
-        var sessionId = request.SessionId;
-        if (string.IsNullOrEmpty(sessionId) || !await _conversationService.SessionExistsAsync(sessionId, cancellationToken))
+        // 1. Validate input
+        if (string.IsNullOrWhiteSpace(request.Message))
         {
-            sessionId = await _conversationService.CreateSessionAsync(request.UserId, cancellationToken);
-            _logger.LogInformation("Created new session {SessionId} for user {UserId}", sessionId, request.UserId ?? "anonymous");
+            return Result.Failure<ChatResponse>(Errors.Chat.MessageEmpty());
         }
 
-        // 2. Retrieve conversation history
-        var history = await _conversationService.GetHistoryAsync(sessionId, _maxHistoryMessages, cancellationToken);
+        if (request.MinRelevance < 0 || request.MinRelevance > 1)
+        {
+            return Result.Failure<ChatResponse>(Errors.Chat.InvalidRelevance());
+        }
 
-        // 3. Build context-aware prompt
-        var prompt = BuildPromptWithHistory(request.Message, history);
+        try
+        {
+            // 2. Ensure session exists
+            var sessionId = request.SessionId;
+            var userId = _userContext.UserId?.ToString();
+            if (string.IsNullOrEmpty(sessionId) || !await _conversationService.SessionExistsAsync(sessionId, cancellationToken))
+            {
+                var createResult = await _conversationService.CreateSessionAsync(userId, cancellationToken);
+                if (createResult.IsFailure)
+                {
+                    return Result.Failure<ChatResponse>(createResult.Error);
+                }
+                sessionId = createResult.Value;
+                _logger.LogInformation("Created new session {SessionId} for user {UserId}", sessionId, userId ?? "anonymous");
+            }
 
-        // 4. Perform RAG query
-        var answer = await _memory.AskAsync(
-            question: prompt,
-            index: _index,
-            filters: BuildFilters(request.Filters),
-            minRelevance: request.MinRelevance,
-            cancellationToken: cancellationToken);
+            // 3. Retrieve conversation history
+            var historyResult = await _conversationService.GetHistoryAsync(sessionId, _maxHistoryMessages, cancellationToken);
+            var history = historyResult.IsSuccess ? historyResult.Value : [];
 
-        // 5. Extract citations
-        var citations = ExtractCitations(answer);
+            // 4. Build context-aware prompt
+            var prompt = BuildPromptWithHistory(request.Message, history);
 
-        // 6. Create response
-        var response = new ChatResponse(
-            Answer: answer?.Result ?? "I don't know.",
-            Citations: citations,
-            Confidence: citations.Any() ? citations.Max(c => c.Relevance) : 0,
-            SessionId: sessionId,
-            TokensUsed: EstimateTokens(answer),
-            Timestamp: DateTime.UtcNow
-        );
+            // 5. Perform RAG query
+            var answer = await _memory.AskAsync(
+                question: prompt,
+                index: _index,
+                filters: BuildFilters(request.Filters),
+                minRelevance: request.MinRelevance,
+                cancellationToken: cancellationToken);
 
-        // 7. Save to conversation history
-        await _conversationService.AddMessageAsync(sessionId,
-            new ConversationMessage("user", request.Message, DateTime.UtcNow), cancellationToken);
-        await _conversationService.AddMessageAsync(sessionId,
-            new ConversationMessage("assistant", response.Answer, DateTime.UtcNow, citations), cancellationToken);
+            // 6. Extract citations
+            var citations = ExtractCitations(answer);
 
-        _logger.LogInformation(
-            "RAG Query completed: SessionId={SessionId}, Confidence={Confidence}, Citations={CitationCount}, Tokens={TokensUsed}",
-            sessionId, response.Confidence, citations.Count, response.TokensUsed);
+            // 7. Create response
+            var response = new ChatResponse(
+                Answer: answer?.Result ?? "I don't know.",
+                Citations: citations,
+                Confidence: citations.Any() ? citations.Max(c => c.Relevance) : 0,
+                SessionId: sessionId,
+                TokensUsed: EstimateTokens(answer),
+                Timestamp: DateTime.UtcNow
+            );
 
-        return response;
+            // 8. Save to conversation history
+            await _conversationService.AddMessageAsync(sessionId,
+                new ConversationMessage("user", request.Message, DateTime.UtcNow), cancellationToken);
+            await _conversationService.AddMessageAsync(sessionId,
+                new ConversationMessage("assistant", response.Answer, DateTime.UtcNow, citations), cancellationToken);
+
+            _logger.LogInformation(
+                "RAG Query completed: SessionId={SessionId}, Confidence={Confidence}, Citations={CitationCount}, Tokens={TokensUsed}",
+                sessionId, response.Confidence, citations.Count, response.TokensUsed);
+
+            return Result.Success(response);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Chat processing failed");
+            return Result.Failure<ChatResponse>(Errors.Chat.ProcessingFailed(ex.Message));
+        }
     }
 
     public async IAsyncEnumerable<string> ChatStreamAsync(
@@ -82,14 +114,22 @@ public class ChatService : IChatService
     {
         // 1. Ensure session exists
         var sessionId = request.SessionId;
+        var userId = _userContext.UserId?.ToString();
         if (string.IsNullOrEmpty(sessionId) || !await _conversationService.SessionExistsAsync(sessionId, cancellationToken))
         {
-            sessionId = await _conversationService.CreateSessionAsync(request.UserId, cancellationToken);
+            var createResult = await _conversationService.CreateSessionAsync(userId, cancellationToken);
+            if (createResult.IsFailure)
+            {
+                _logger.LogError("Failed to create session for streaming chat: {Error}", createResult.Error.Message);
+                yield break;
+            }
+            sessionId = createResult.Value;
             _logger.LogInformation("Created new session {SessionId} for streaming chat", sessionId);
         }
 
         // 2. Retrieve conversation history
-        var history = await _conversationService.GetHistoryAsync(sessionId, _maxHistoryMessages, cancellationToken);
+        var historyResult = await _conversationService.GetHistoryAsync(sessionId, _maxHistoryMessages, cancellationToken);
+        var history = historyResult.IsSuccess ? historyResult.Value : [];
 
         // 3. Build context-aware prompt
         var prompt = BuildPromptWithHistory(request.Message, history);

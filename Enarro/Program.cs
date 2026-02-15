@@ -5,8 +5,10 @@ using System.Text.Json;
 using Asp.Versioning;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
+using Enarro.Common;
 using Enarro.Data;
 using Enarro.Extensions;
+using Enarro.Middleware;
 using Enarro.ServiceDefaults;
 using Enarro.Services;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
@@ -129,6 +131,12 @@ try
     
     #endregion Add JWT Authentication
 
+    // Register UserContext
+    builder.Services.AddScoped<IUserContext, UserContext>();
+    
+    // Register Unit of Work
+    builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
+    
     // Register application services
     builder.Services.AddScoped<IDocumentService, DocumentService>();
     builder.Services.AddScoped<IChatService, ChatService>();
@@ -136,7 +144,7 @@ try
     builder.Services.AddScoped<IAuthService, AuthService>();
     
     // Register global exception handler
-    builder.Services.AddExceptionHandler<Enarro.Middleware.GlobalExceptionHandler>();
+    builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
     builder.Services.AddProblemDetails();
 
     builder.Services.AddOpenApi();
@@ -203,6 +211,7 @@ app.UseExceptionHandler();
 
 // Add authentication and authorization middleware
 app.UseAuthentication();
+app.UseMiddleware<UserContextMiddleware>();
 app.UseAuthorization();
 
 app.MapEndpoints(versionedGroup);

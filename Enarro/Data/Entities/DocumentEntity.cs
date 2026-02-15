@@ -3,7 +3,7 @@ namespace Enarro.Data.Entities;
 /// <summary>
 /// Entity representing a document in the system
 /// </summary>
-public class DocumentEntity
+public class DocumentEntity : IAuditable
 {
     public Guid Id { get; set; }
     public string FileName { get; set; } = string.Empty;
@@ -14,8 +14,12 @@ public class DocumentEntity
     public string Status { get; set; } = "Uploading";
     public int ChunkCount { get; set; }
     public string? ErrorMessage { get; set; }
+    
+    // IAuditable
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
+    public string? CreatedBy { get; set; }
+    public string? LastModifiedBy { get; set; }
     
     // Foreign key to User
     public Guid? UserId { get; set; }
