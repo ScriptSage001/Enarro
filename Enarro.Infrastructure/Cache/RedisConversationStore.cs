@@ -1,5 +1,6 @@
 using System.Text.Json;
 using Enarro.Application.Abstractions;
+using Enarro.Application.Models;
 using Microsoft.Extensions.Logging;
 using StackExchange.Redis;
 
@@ -43,7 +44,7 @@ public class RedisConversationStore(
     public async Task AddMessageAsync(
         string sessionId, string role, string content, CancellationToken cancellationToken = default)
     {
-        var message = new ConversationMessage(role, content, DateTime.UtcNow);
+        var message = new ConversationMessageModel(role, content, DateTime.UtcNow);
         await Db.ListRightPushAsync(
             $"{SessionPrefix}{sessionId}:messages",
             JsonSerializer.Serialize(message));
@@ -52,7 +53,7 @@ public class RedisConversationStore(
         await Db.KeyExpireAsync($"{SessionPrefix}{sessionId}:messages", SessionExpiry);
     }
 
-    public async Task<IReadOnlyList<ConversationMessage>> GetHistoryAsync(
+    public async Task<IReadOnlyList<ConversationMessageModel>> GetHistoryAsync(
         string sessionId, int maxMessages = 10, CancellationToken cancellationToken = default)
     {
         var messages = await Db.ListRangeAsync(
@@ -61,15 +62,15 @@ public class RedisConversationStore(
             -1);
 
         return messages
-            .Select(m => JsonSerializer.Deserialize<ConversationMessage>(m.ToString())!)
+            .Select(m => JsonSerializer.Deserialize<ConversationMessageModel>(m.ToString())!)
             .ToList();
     }
 
-    public async Task<IReadOnlyList<SessionSummary>> GetUserSessionsAsync(
+    public async Task<IReadOnlyList<SessionSummaryModel>> GetUserSessionsAsync(
         Guid userId, CancellationToken cancellationToken = default)
     {
         var sessionIds = await Db.SetMembersAsync($"{UserSessionsPrefix}{userId}");
-        var summaries = new List<SessionSummary>();
+        var summaries = new List<SessionSummaryModel>();
 
         foreach (var sid in sessionIds)
         {
@@ -87,12 +88,12 @@ public class RedisConversationStore(
                     $"{SessionPrefix}{sessionId}:messages", -1);
                 if (!lastMsgJson.IsNullOrEmpty)
                 {
-                    var msg = JsonSerializer.Deserialize<ConversationMessage>(lastMsgJson.ToString());
+                    var msg = JsonSerializer.Deserialize<ConversationMessageModel>(lastMsgJson.ToString());
                     lastMessage = msg?.Content;
                 }
             }
 
-            summaries.Add(new SessionSummary(
+            summaries.Add(new SessionSummaryModel(
                 sessionId,
                 meta?.CreatedAt ?? DateTime.UtcNow,
                 (int)messageCount,

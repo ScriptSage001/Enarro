@@ -1,5 +1,6 @@
 using CoreKernel.Functional.Results;
 using Enarro.Application.Abstractions;
+using Enarro.Application.Models;
 using Microsoft.Extensions.Logging;
 using Microsoft.KernelMemory;
 
@@ -81,7 +82,7 @@ public class KernelMemoryVectorService(
         }
     }
 
-    public async Task<Result<VectorSearchResult>> AskAsync(
+    public async Task<Result<VectorSearchResultModel>> AskAsync(
         string question,
         string? indexName = null,
         IEnumerable<KeyValuePair<string, string>>? filters = null,
@@ -109,7 +110,7 @@ public class KernelMemoryVectorService(
 
             var citations = answer.RelevantSources
                 .Take(maxResults)
-                .Select(s => new VectorCitation(
+                .Select(s => new VectorCitationModel(
                     s.DocumentId,
                     s.SourceName ?? "Unknown",
                     string.Join(" ", s.Partitions.Select(p => p.Text).Take(1)),
@@ -119,7 +120,7 @@ public class KernelMemoryVectorService(
             var isRelevant = !string.IsNullOrWhiteSpace(answer.Result)
                 && !answer.Result.Contains("INFO NOT FOUND", StringComparison.OrdinalIgnoreCase);
 
-            return Result.Success(new VectorSearchResult(
+            return Result.Success(new VectorSearchResultModel(
                 answer.Result,
                 citations,
                 isRelevant));
@@ -127,7 +128,7 @@ public class KernelMemoryVectorService(
         catch (Exception ex)
         {
             logger.LogError(ex, "Failed to query vector store");
-            return Result.Failure<VectorSearchResult>(Error.Failure(
+            return Result.Failure<VectorSearchResultModel>(Error.Failure(
                 "VectorMemory.QueryFailed",
                 $"Query failed: {ex.Message}"));
         }

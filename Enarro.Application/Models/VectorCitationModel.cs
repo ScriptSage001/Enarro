@@ -1,9 +1,9 @@
-namespace Enarro.Application.Abstractions;
+namespace Enarro.Application.Models;
 
 /// <summary>
 /// A citation from the vector search.
 /// </summary>
-public record VectorCitation(
+public record VectorCitationModel(
     string DocumentId,
     string FileName,
     string Excerpt,

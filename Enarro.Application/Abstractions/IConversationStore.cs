@@ -1,3 +1,5 @@
+using Enarro.Application.Models;
+
 namespace Enarro.Application.Abstractions;
 
 /// <summary>
@@ -16,12 +18,12 @@ public interface IConversationStore
         string content,
         CancellationToken cancellationToken = default);
 
-    Task<IReadOnlyList<ConversationMessage>> GetHistoryAsync(
+    Task<IReadOnlyList<ConversationMessageModel>> GetHistoryAsync(
         string sessionId,
         int maxMessages = 10,
         CancellationToken cancellationToken = default);
 
-    Task<IReadOnlyList<SessionSummary>> GetUserSessionsAsync(
+    Task<IReadOnlyList<SessionSummaryModel>> GetUserSessionsAsync(
         Guid userId,
         CancellationToken cancellationToken = default);
 

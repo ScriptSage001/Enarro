@@ -1,4 +1,5 @@
 using CoreKernel.Functional.Results;
+using Enarro.Application.Models;
 
 namespace Enarro.Application.Abstractions;
 
@@ -30,7 +31,7 @@ public interface IVectorMemoryService
     /// <summary>
     /// Asks a question against the indexed documents and returns an answer with citations.
     /// </summary>
-    Task<Result<VectorSearchResult>> AskAsync(
+    Task<Result<VectorSearchResultModel>> AskAsync(
         string question,
         string? indexName = null,
         IEnumerable<KeyValuePair<string, string>>? filters = null,
