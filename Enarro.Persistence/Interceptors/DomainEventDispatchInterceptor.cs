@@ -1,4 +1,4 @@
-using CoreKernel.Primitives.Entities;
+using CoreKernel.Primitives.Abstractions;
 using MediatR;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 
@@ -6,7 +6,8 @@ namespace Enarro.Persistence.Interceptors;
 
 /// <summary>
 /// EF Core interceptor that dispatches domain events after SaveChangesAsync completes.
-/// Collects events from all AggregateRoots and publishes them via MediatR's IPublisher.
+/// Collects events from all entities that expose GetDomainEvents/ClearDomainEvents methods
+/// (i.e. CoreKernel AggregateRoot{T} subclasses) and publishes them via MediatR.
 /// </summary>
 public class DomainEventDispatchInterceptor(IPublisher publisher) : SaveChangesInterceptor
 {
@@ -27,25 +28,23 @@ public class DomainEventDispatchInterceptor(IPublisher publisher) : SaveChangesI
         Microsoft.EntityFrameworkCore.DbContext context,
         CancellationToken cancellationToken)
     {
-        // Find all aggregate roots with pending domain events
-        var aggregateRoots = context.ChangeTracker
-            .Entries()
-            .Where(e => e.Entity is IAggregateRootMarker)
-            .Select(e => e.Entity)
-            .ToList();
+        var domainEvents = new List<IDomainEvent>();
 
-        var domainEvents = new List<CoreKernel.Primitives.Abstractions.IDomainEvent>();
-
-        foreach (var entity in aggregateRoots)
+        foreach (var entry in context.ChangeTracker.Entries())
         {
-            // Use reflection to get domain events since the base type is generic
-            var getEventsMethod = entity.GetType().GetMethod("GetDomainEvents");
-            var clearEventsMethod = entity.GetType().GetMethod("ClearDomainEvents");
+            var entity = entry.Entity;
+            var entityType = entity.GetType();
 
-            if (getEventsMethod?.Invoke(entity, null) is IReadOnlyCollection<CoreKernel.Primitives.Abstractions.IDomainEvent> events
+            // Look for GetDomainEvents() method (present on CoreKernel AggregateRoot<T>)
+            var getEventsMethod = entityType.GetMethod("GetDomainEvents");
+            if (getEventsMethod is null) continue;
+
+            if (getEventsMethod.Invoke(entity, null) is IReadOnlyCollection<IDomainEvent> events
                 && events.Count > 0)
             {
                 domainEvents.AddRange(events);
+
+                var clearEventsMethod = entityType.GetMethod("ClearDomainEvents");
                 clearEventsMethod?.Invoke(entity, null);
             }
         }
@@ -57,8 +56,3 @@ public class DomainEventDispatchInterceptor(IPublisher publisher) : SaveChangesI
         }
     }
 }
-
-/// <summary>
-/// Internal marker to identify aggregate roots without knowing the generic type.
-/// </summary>
-internal interface IAggregateRootMarker { }

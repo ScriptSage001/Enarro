@@ -1,3 +1,4 @@
+using Enarro.Application.Abstractions;
 using Enarro.Domain.Common;
 using Enarro.Domain.Documents;
 using Enarro.Domain.Users;
@@ -16,8 +17,8 @@ public static class DependencyInjection
     public static IServiceCollection AddPersistence(this IServiceCollection services)
     {
         // Interceptors
-        services.AddSingleton<AuditableEntityInterceptor>();
-        services.AddSingleton<DomainEventDispatchInterceptor>();
+        services.AddScoped<AuditableEntityInterceptor>();
+        services.AddScoped<DomainEventDispatchInterceptor>();
 
         // DbContext is registered via Aspire's AddNpgsqlDbContext in the API project
         // This method registers the interceptors and repositories
@@ -28,6 +29,9 @@ public static class DependencyInjection
 
         // Unit of Work
         services.AddScoped<IUnitOfWork, UnitOfWork>();
+
+        // Query Services
+        services.AddScoped<IDocumentQueryService, QueryServices.DocumentQueryService>();
 
         return services;
     }
