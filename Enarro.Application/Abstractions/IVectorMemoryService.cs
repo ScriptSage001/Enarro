@@ -46,20 +46,3 @@ public interface IVectorMemoryService
         string? indexName = null,
         CancellationToken cancellationToken = default);
 }
-
-/// <summary>
-/// Result of a vector search / RAG query.
-/// </summary>
-public record VectorSearchResult(
-    string Answer,
-    IReadOnlyList<VectorCitation> Citations,
-    bool IsAnswerRelevant);
-
-/// <summary>
-/// A citation from the vector search.
-/// </summary>
-public record VectorCitation(
-    string DocumentId,
-    string FileName,
-    string Excerpt,
-    double Relevance);

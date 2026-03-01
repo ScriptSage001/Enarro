@@ -29,13 +29,3 @@ public interface IConversationStore
         string sessionId,
         CancellationToken cancellationToken = default);
 }
-
-/// <summary>
-/// A message in a conversation session.
-/// </summary>
-public record ConversationMessage(string Role, string Content, DateTime Timestamp);
-
-/// <summary>
-/// Summary of a conversation session.
-/// </summary>
-public record SessionSummary(string SessionId, DateTime CreatedAt, int MessageCount, string? LastMessage);
