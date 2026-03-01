@@ -1,4 +1,4 @@
-namespace Enarro.Models.Session;
+namespace Enarro.Contracts.Session;
 
 /// <summary>
 /// Information about a user session

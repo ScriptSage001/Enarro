@@ -9,7 +9,7 @@ using CoreKernel.Functional.Results;
 using Enarro.Common.Errors;
 using Enarro.Data;
 using Enarro.Data.Entities;
-using Enarro.Models.Auth;
+using Enarro.Contracts.Auth;
 
 namespace Enarro.Services;
 

@@ -11,14 +11,14 @@ public sealed class RefreshTokenCommandHandler(
     IUserRepository userRepository,
     IUnitOfWork unitOfWork,
     IJwtTokenService jwtTokenService)
-    : ICommandHandler<RefreshTokenCommand, AuthResult>
+    : ICommandHandler<RefreshTokenCommand, AuthResultModel>
 {
-    public async Task<Result<AuthResult>> Handle(RefreshTokenCommand command, CancellationToken cancellationToken)
+    public async Task<Result<AuthResultModel>> Handle(RefreshTokenCommand command, CancellationToken cancellationToken)
     {
         var user = await userRepository.GetByRefreshTokenAsync(command.RefreshToken, cancellationToken);
         if (user is null)
         {
-            return Result.Failure<AuthResult>(UserErrors.TokenNotFound());
+            return Result.Failure<AuthResultModel>(UserErrors.TokenNotFound());
         }
 
         var existingToken = user.RefreshTokens
@@ -26,7 +26,7 @@ public sealed class RefreshTokenCommandHandler(
 
         if (existingToken is null || !existingToken.IsValid())
         {
-            return Result.Failure<AuthResult>(UserErrors.InvalidToken());
+            return Result.Failure<AuthResultModel>(UserErrors.InvalidToken());
         }
 
         existingToken.Revoke("Replaced by new token");
@@ -49,6 +49,6 @@ public sealed class RefreshTokenCommandHandler(
             user.IsActive,
             user.LastLoginAt);
 
-        return new AuthResult(accessToken, newRefreshTokenValue, expiresAt, userModel);
+        return new AuthResultModel(accessToken, newRefreshTokenValue, expiresAt, userModel);
     }
 }

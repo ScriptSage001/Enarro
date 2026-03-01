@@ -4,7 +4,8 @@ using Microsoft.KernelMemory;
 using CoreKernel.Functional.Results;
 using Enarro.Common;
 using Enarro.Common.Errors;
-using Enarro.Models.Chat;
+using Enarro.Contracts.Chat;
+using ChatCitation = Enarro.Contracts.Chat.Citation;
 
 namespace Enarro.Services;
 
@@ -196,13 +197,13 @@ public class ChatService : IChatService
         return contextBuilder.ToString();
     }
 
-    private List<Models.Chat.Citation> ExtractCitations(MemoryAnswer? answer)
+    private List<ChatCitation> ExtractCitations(MemoryAnswer? answer)
     {
         if (answer?.RelevantSources == null || !answer.RelevantSources.Any())
-            return new List<Models.Chat.Citation>();
+            return new List<ChatCitation>();
 
         return answer.RelevantSources
-            .SelectMany(source => source.Partitions.Select(partition => new Models.Chat.Citation(
+            .SelectMany(source => source.Partitions.Select(partition => new ChatCitation(
                 DocumentId: source.SourceName,
                 DocumentName: source.SourceName,
                 Excerpt: partition.Text.Length > 200 ? partition.Text[..200] + "..." : partition.Text,

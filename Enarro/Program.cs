@@ -5,12 +5,14 @@ using System.Text.Json;
 using Asp.Versioning;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
-using Enarro.Common;
-using Enarro.Data;
+using Enarro.Application;
+using Enarro.Application.Abstractions;
 using Enarro.Extensions;
+using Enarro.Infrastructure;
 using Enarro.Middleware;
-using Enarro.ServiceDefaults;
+using Enarro.Persistence;
 using Enarro.Services;
+using Enarro.ServiceDefaults;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
@@ -42,12 +44,19 @@ builder.AddServiceDefaults();
 
 try
 {
+    // ─── Clean Architecture Layer Registration ───────────────────────────
+    builder.Services.AddApplication();
+    builder.Services.AddPersistence();
+    builder.Services.AddInfrastructure();
+
+    // ─── Aspire-managed services ─────────────────────────────────────────
+
     #region Add PostgreSQL with EF Core
     
-    builder.AddNpgsqlDbContext<EnarroDbContext>("enarro-db");
+    builder.AddNpgsqlDbContext<Enarro.Persistence.EnarroDbContext>("enarro-db");
     
     #endregion Add PostgreSQL
-    
+
     #region Add Redis for Distributed Caching
     
     builder.AddRedisDistributedCache("redis");
@@ -131,18 +140,12 @@ try
     
     #endregion Add JWT Authentication
 
-    // Register UserContext
-    builder.Services.AddScoped<IUserContext, UserContext>();
-    
-    // Register Unit of Work
-    builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
-    
-    // Register application services
-    builder.Services.AddScoped<IDocumentService, DocumentService>();
-    builder.Services.AddScoped<IChatService, ChatService>();
-    builder.Services.AddScoped<IConversationService, ConversationService>();
-    builder.Services.AddScoped<IAuthService, AuthService>();
-    
+    // ─── API-level registrations ─────────────────────────────────────────
+
+    // Register CurrentUserService (scoped, implements ICurrentUserService)
+    builder.Services.AddScoped<CurrentUserService>();
+    builder.Services.AddScoped<ICurrentUserService>(sp => sp.GetRequiredService<CurrentUserService>());
+
     // Register global exception handler
     builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
     builder.Services.AddProblemDetails();
@@ -193,7 +196,7 @@ var app = builder.Build();
 // Run database migrations
 using (var scope = app.Services.CreateScope())
 {
-    var dbContext = scope.ServiceProvider.GetRequiredService<EnarroDbContext>();
+    var dbContext = scope.ServiceProvider.GetRequiredService<Enarro.Persistence.EnarroDbContext>();
     await dbContext.Database.MigrateAsync();
 }
 

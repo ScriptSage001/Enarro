@@ -1,5 +1,5 @@
 using Enarro.Common.Errors;
-using Enarro.Models.Chat;
+using Enarro.Contracts.Chat;
 using Enarro.Services;
 
 namespace Enarro.Endpoints.Chat;

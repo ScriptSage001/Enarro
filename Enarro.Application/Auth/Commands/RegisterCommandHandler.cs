@@ -11,13 +11,13 @@ public sealed class RegisterCommandHandler(
     IUserRepository userRepository,
     IUnitOfWork unitOfWork,
     IJwtTokenService jwtTokenService)
-    : ICommandHandler<RegisterCommand, AuthResult>
+    : ICommandHandler<RegisterCommand, AuthResultModel>
 {
-    public async Task<Result<AuthResult>> Handle(RegisterCommand command, CancellationToken cancellationToken)
+    public async Task<Result<AuthResultModel>> Handle(RegisterCommand command, CancellationToken cancellationToken)
     {
         if (await userRepository.ExistsAsync(command.Email, cancellationToken))
         {
-            return Result.Failure<AuthResult>(UserErrors.EmailAlreadyExists(command.Email));
+            return Result.Failure<AuthResultModel>(UserErrors.EmailAlreadyExists(command.Email));
         }
 
         var passwordHash = BCrypt.Net.BCrypt.HashPassword(command.Password);
@@ -47,6 +47,6 @@ public sealed class RegisterCommandHandler(
 
         var expiresAt = DateTime.UtcNow.AddMinutes(jwtTokenService.AccessTokenExpirationMinutes);
 
-        return new AuthResult(accessToken, refreshTokenValue, expiresAt, userModel);
+        return new AuthResultModel(accessToken, refreshTokenValue, expiresAt, userModel);
     }
 }

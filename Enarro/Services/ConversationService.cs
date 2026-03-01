@@ -2,8 +2,8 @@ using System.Text.Json;
 using Microsoft.Extensions.Caching.Distributed;
 using CoreKernel.Functional.Results;
 using Enarro.Common.Errors;
-using Enarro.Models.Chat;
-using Enarro.Models.Session;
+using Enarro.Contracts.Chat;
+using Enarro.Contracts.Session;
 
 namespace Enarro.Services;
 

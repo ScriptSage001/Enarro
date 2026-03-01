@@ -1,4 +1,4 @@
-namespace Enarro.Models.Auth;
+namespace Enarro.Contracts.Auth;
 
 /// <summary>
 /// Request model for user registration

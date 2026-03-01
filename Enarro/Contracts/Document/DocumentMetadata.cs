@@ -1,4 +1,4 @@
-namespace Enarro.Models.Document;
+namespace Enarro.Contracts.Document;
 
 /// <summary>
 /// Represents metadata for an uploaded document

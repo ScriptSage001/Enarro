@@ -1,9 +1,9 @@
-using Enarro.Common;
+using Enarro.Services;
 
 namespace Enarro.Middleware;
 
 /// <summary>
-/// Middleware that populates the scoped UserContext from the authenticated user's claims.
+/// Middleware that populates the scoped CurrentUserService from the authenticated user's claims.
 /// Must run after UseAuthentication() so that HttpContext.User is populated.
 /// </summary>
 public class UserContextMiddleware
@@ -15,11 +15,11 @@ public class UserContextMiddleware
         _next = next;
     }
 
-    public async Task InvokeAsync(HttpContext context, IUserContext userContext)
+    public async Task InvokeAsync(HttpContext context, CurrentUserService currentUserService)
     {
         if (context.User.Identity is { IsAuthenticated: true })
         {
-            userContext.Set(context.User);
+            currentUserService.SetFromPrincipal(context.User);
         }
 
         await _next(context);

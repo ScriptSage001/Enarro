@@ -5,4 +5,4 @@ namespace Enarro.Application.Auth.Commands;
 
 public sealed record LoginCommand(
     string Email,
-    string Password) : ICommand<AuthResult>;
+    string Password) : ICommand<AuthResultModel>;

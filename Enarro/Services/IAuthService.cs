@@ -1,5 +1,5 @@
 using CoreKernel.Functional.Results;
-using Enarro.Models.Auth;
+using Enarro.Contracts.Auth;
 
 namespace Enarro.Services;
 

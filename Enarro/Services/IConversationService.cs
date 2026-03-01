@@ -1,6 +1,6 @@
 using CoreKernel.Functional.Results;
-using Enarro.Models.Chat;
-using Enarro.Models.Session;
+using Enarro.Contracts.Chat;
+using Enarro.Contracts.Session;
 
 namespace Enarro.Services;
 

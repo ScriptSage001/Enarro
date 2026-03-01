@@ -1,6 +1,6 @@
 namespace Enarro.Application.Models;
 
-public sealed record AuthResult(
+public sealed record AuthResultModel(
     string AccessToken,
     string RefreshToken,
     DateTime ExpiresAt,

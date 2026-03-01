@@ -1,4 +1,4 @@
-namespace Enarro.Models.Common;
+namespace Enarro.Contracts.Common;
 
 /// <summary>
 /// Generic paged result for list operations

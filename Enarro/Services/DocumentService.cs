@@ -5,8 +5,8 @@ using Enarro.Common;
 using Enarro.Common.Errors;
 using Enarro.Data;
 using Enarro.Data.Entities;
-using Enarro.Models.Document;
-using Enarro.Models.Common;
+using Enarro.Contracts.Document;
+using Enarro.Contracts.Common;
 
 namespace Enarro.Services;
 

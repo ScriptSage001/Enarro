@@ -1,6 +1,6 @@
 using CoreKernel.Functional.Results;
-using Enarro.Models.Document;
-using Enarro.Models.Common;
+using Enarro.Contracts.Document;
+using Enarro.Contracts.Common;
 
 namespace Enarro.Services;
 

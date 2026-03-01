@@ -1,4 +1,4 @@
-namespace Enarro.Models.Chat;
+namespace Enarro.Contracts.Chat;
 
 /// <summary>
 /// Represents a chat response with citations and metadata

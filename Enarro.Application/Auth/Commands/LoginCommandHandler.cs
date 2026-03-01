@@ -11,24 +11,24 @@ public sealed class LoginCommandHandler(
     IUserRepository userRepository,
     IUnitOfWork unitOfWork,
     IJwtTokenService jwtTokenService)
-    : ICommandHandler<LoginCommand, AuthResult>
+    : ICommandHandler<LoginCommand, AuthResultModel>
 {
-    public async Task<Result<AuthResult>> Handle(LoginCommand command, CancellationToken cancellationToken)
+    public async Task<Result<AuthResultModel>> Handle(LoginCommand command, CancellationToken cancellationToken)
     {
         var user = await userRepository.GetByEmailAsync(command.Email, cancellationToken);
         if (user is null)
         {
-            return Result.Failure<AuthResult>(UserErrors.InvalidCredentials());
+            return Result.Failure<AuthResultModel>(UserErrors.InvalidCredentials());
         }
 
         if (!user.IsActive)
         {
-            return Result.Failure<AuthResult>(UserErrors.UserInactive());
+            return Result.Failure<AuthResultModel>(UserErrors.UserInactive());
         }
 
         if (!BCrypt.Net.BCrypt.Verify(command.Password, user.PasswordHash))
         {
-            return Result.Failure<AuthResult>(UserErrors.InvalidCredentials());
+            return Result.Failure<AuthResultModel>(UserErrors.InvalidCredentials());
         }
 
         user.UpdateLastLogin();
@@ -51,6 +51,6 @@ public sealed class LoginCommandHandler(
             user.IsActive,
             user.LastLoginAt);
 
-        return new AuthResult(accessToken, refreshTokenValue, expiresAt, userModel);
+        return new AuthResultModel(accessToken, refreshTokenValue, expiresAt, userModel);
     }
 }

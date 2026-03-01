@@ -1,6 +1,7 @@
+using Enarro.Application.Chat.Commands;
 using Enarro.Extensions;
-using Enarro.Models.Chat;
-using Enarro.Services;
+using Enarro.Contracts.Chat;
+using MediatR;
 
 namespace Enarro.Endpoints.Chat;
 
@@ -14,7 +15,7 @@ public class Post : IEndpoint
                 .RequireAuthorization()
                 .WithTags("Chat")
                 .WithSummary("Chat endpoint with conversation history and citations support")
-                .Produces<ChatResponse>(StatusCodes.Status200OK)
+                .Produces<object>(StatusCodes.Status200OK)
                 .ProducesProblem(StatusCodes.Status400BadRequest)
                 .ProducesProblem(StatusCodes.Status401Unauthorized)
                 .ProducesProblem(StatusCodes.Status500InternalServerError);
@@ -26,10 +27,17 @@ public class Post : IEndpoint
 
     private static async Task<IResult> Chat(
         ChatRequest request,
-        IChatService chatService,
+        ISender sender,
         CancellationToken cancellationToken)
     {
-        var result = await chatService.ChatAsync(request, cancellationToken);
+        var command = new SendMessageCommand(
+            request.Message,
+            request.SessionId,
+            request.Filters,
+            request.MinRelevance,
+            request.MaxResults);
+
+        var result = await sender.Send(command, cancellationToken);
         return result.ToHttpResult();
     }
 

@@ -1,5 +1,5 @@
 using CoreKernel.Functional.Results;
-using Enarro.Models.Chat;
+using Enarro.Contracts.Chat;
 
 namespace Enarro.Services;
 

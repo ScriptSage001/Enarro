@@ -1,4 +1,4 @@
-namespace Enarro.Models.Document;
+namespace Enarro.Contracts.Document;
 
 /// <summary>
 /// Result of a batch document ingestion operation
