@@ -4,7 +4,7 @@ using Enarro.Domain.Documents;
 using Enarro.Domain.Users;
 using Enarro.Persistence.Interceptors;
 using Enarro.Persistence.Repositories;
-using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Enarro.Persistence;
@@ -14,7 +14,7 @@ namespace Enarro.Persistence;
 /// </summary>
 public static class DependencyInjection
 {
-    public static IServiceCollection AddPersistence(this IServiceCollection services)
+    public static IServiceCollection AddPersistence(this IServiceCollection services, IConfiguration configuration)
     {
         // Interceptors
         services.AddScoped<AuditableEntityInterceptor>();
@@ -32,6 +32,14 @@ public static class DependencyInjection
 
         // Query Services
         services.AddScoped<IDocumentQueryService, QueryServices.DocumentQueryService>();
+
+        // Health Checks
+        var connectionString = configuration.GetConnectionString("enarro-db");
+        if (!string.IsNullOrEmpty(connectionString))
+        {
+            services.AddHealthChecks()
+                .AddNpgSql(connectionString, name: "postgresql", tags: ["db", "sql"]);
+        }
 
         return services;
     }

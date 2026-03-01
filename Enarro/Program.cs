@@ -15,10 +15,8 @@ using Enarro.Services;
 using Enarro.ServiceDefaults;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.KernelMemory;
 using Microsoft.KernelMemory.AI.Ollama;
-using Qdrant.Client;
 using Serilog;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -46,8 +44,8 @@ try
 {
     // ─── Layer Registration ───────────────────────────
     builder.Services.AddApplication();
-    builder.Services.AddPersistence();
-    builder.Services.AddInfrastructure();
+    builder.Services.AddPersistence(builder.Configuration);
+    builder.Services.AddInfrastructure(builder.Configuration);
 
     // ─── Aspire-managed services ─────────────────────────────────────────
 
@@ -167,24 +165,9 @@ try
     builder.Services.AddEndpoints(Assembly.GetExecutingAssembly());
     builder.Services.AddSwaggerGen();
 
-    // Enhanced Health Checks
-    builder.Services
-        .AddHealthChecks()
-        .AddNpgSql(builder.Configuration.GetConnectionString("enarro-db")!, name: "postgresql", tags: ["db", "sql"])
-        .AddRedis(builder.Configuration.GetConnectionString("redis")!, name: "redis", tags: ["cache"])
-        .AddCheck("ollama", () =>
-        {
-            using var client = new HttpClient();
-            var response = client.GetAsync($"{ollamaUrl}/api/tags").Result;
-            return response.IsSuccessStatusCode ? HealthCheckResult.Healthy() : HealthCheckResult.Unhealthy();
-        }, tags: ["llm"])
-        .AddCheck("qdrant", () =>
-        {
-            var url = new Uri(qdrantGrpcUrl!);
-            var client = new QdrantClient(url, qdrantApiKey);
-            var collection = client.ListCollectionsAsync().Result;
-            return HealthCheckResult.Healthy();
-        }, tags: ["vector-db"]);
+    // Health checks are registered by each layer:
+    // - PostgreSQL check: AddPersistence()
+    // - Redis, Ollama, Qdrant checks: AddInfrastructure()
 }
 catch (Exception e)
 {

@@ -37,9 +37,7 @@
         <PackageReference Include="Serilog.Sinks.File" Version="7.0.0" />
         <PackageReference Include="Serilog.Enrichers.Environment" Version="3.0.1" />
         
-        <!-- Health Checks -->
-        <PackageReference Include="AspNetCore.HealthChecks.NpgSql" Version="9.0.0" />
-        <PackageReference Include="AspNetCore.HealthChecks.Redis" Version="9.0.0" />
+        <!-- Health check packages moved to Persistence and Infrastructure layers -->
         <PackageReference Include="AspNetCore.HealthChecks.Uris" Version="9.0.0" />
         
         <!-- JWT Authentication -->
