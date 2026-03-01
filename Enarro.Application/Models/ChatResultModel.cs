@@ -1,4 +1,4 @@
-namespace Enarro.Application.Chat.Models;
+namespace Enarro.Application.Models;
 
 public sealed record ChatResultModel(
     string Answer,
@@ -6,9 +6,3 @@ public sealed record ChatResultModel(
     double ConfidenceScore,
     string SessionId,
     int TokensUsed);
-
-public sealed record CitationModel(
-    string DocumentId,
-    string FileName,
-    string Excerpt,
-    double Relevance);

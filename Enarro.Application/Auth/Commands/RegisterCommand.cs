@@ -1,5 +1,5 @@
 using CoreKernel.Messaging.Commands;
-using Enarro.Application.Auth.Models;
+using Enarro.Application.Models;
 
 namespace Enarro.Application.Auth.Commands;
 

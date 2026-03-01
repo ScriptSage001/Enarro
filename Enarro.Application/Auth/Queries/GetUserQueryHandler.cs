@@ -1,6 +1,6 @@
 using CoreKernel.Functional.Results;
 using CoreKernel.Messaging.Queries;
-using Enarro.Application.Auth.Models;
+using Enarro.Application.Models;
 using Enarro.Domain.Common;
 using Enarro.Domain.Users;
 

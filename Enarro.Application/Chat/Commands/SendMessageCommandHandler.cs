@@ -1,7 +1,7 @@
 using CoreKernel.Functional.Results;
 using CoreKernel.Messaging.Commands;
 using Enarro.Application.Abstractions;
-using Enarro.Application.Chat.Models;
+using Enarro.Application.Models;
 
 namespace Enarro.Application.Chat.Commands;
 

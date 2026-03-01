@@ -1,5 +1,5 @@
 using CoreKernel.Messaging.Queries;
-using Enarro.Application.Documents.Models;
+using Enarro.Application.Models;
 
 namespace Enarro.Application.Documents.Queries;
 

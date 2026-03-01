@@ -1,5 +1,5 @@
 using CoreKernel.Messaging.Commands;
-using Enarro.Application.Documents.Models;
+using Enarro.Application.Models;
 
 namespace Enarro.Application.Documents.Commands;
 

@@ -1,7 +1,7 @@
 using CoreKernel.Functional.Results;
 using CoreKernel.Messaging.Queries;
 using Enarro.Application.Common;
-using Enarro.Application.Documents.Models;
+using Enarro.Application.Models;
 using Enarro.Domain.Documents;
 using Microsoft.EntityFrameworkCore;
 

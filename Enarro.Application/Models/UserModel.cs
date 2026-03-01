@@ -1,10 +1,4 @@
-namespace Enarro.Application.Auth.Models;
-
-public sealed record AuthResult(
-    string AccessToken,
-    string RefreshToken,
-    DateTime ExpiresAt,
-    UserModel User);
+namespace Enarro.Application.Models;
 
 public sealed record UserModel(
     Guid Id,
