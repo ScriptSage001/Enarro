@@ -4,8 +4,10 @@ using Enarro.Domain.Documents;
 using Enarro.Domain.Users;
 using Enarro.Persistence.Interceptors;
 using Enarro.Persistence.Repositories;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 
 namespace Enarro.Persistence;
 
@@ -14,33 +16,36 @@ namespace Enarro.Persistence;
 /// </summary>
 public static class DependencyInjection
 {
-    public static IServiceCollection AddPersistence(this IServiceCollection services, IConfiguration configuration)
+    /// <summary>
+    /// Registers Persistence services: DbContext (via Aspire), interceptors, repositories, and health checks.
+    /// </summary>
+    public static IHostApplicationBuilder AddPersistence(this IHostApplicationBuilder builder)
     {
-        // Interceptors
-        services.AddScoped<AuditableEntityInterceptor>();
-        services.AddScoped<DomainEventDispatchInterceptor>();
+        // Aspire-managed PostgreSQL + EF Core DbContext
+        builder.AddNpgsqlDbContext<EnarroDbContext>("enarro-db");
 
-        // DbContext is registered via Aspire's AddNpgsqlDbContext in the API project
-        // This method registers the interceptors and repositories
+        // Interceptors (Scoped — they depend on scoped services like ICurrentUserService, IPublisher)
+        builder.Services.AddScoped<AuditableEntityInterceptor>();
+        builder.Services.AddScoped<DomainEventDispatchInterceptor>();
 
         // Repositories
-        services.AddScoped<IUserRepository, UserRepository>();
-        services.AddScoped<IDocumentRepository, DocumentRepository>();
+        builder.Services.AddScoped<IUserRepository, UserRepository>();
+        builder.Services.AddScoped<IDocumentRepository, DocumentRepository>();
 
         // Unit of Work
-        services.AddScoped<IUnitOfWork, UnitOfWork>();
+        builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
 
         // Query Services
-        services.AddScoped<IDocumentQueryService, QueryServices.DocumentQueryService>();
+        builder.Services.AddScoped<IDocumentQueryService, QueryServices.DocumentQueryService>();
 
         // Health Checks
-        var connectionString = configuration.GetConnectionString("enarro-db");
+        var connectionString = builder.Configuration.GetConnectionString("enarro-db");
         if (!string.IsNullOrEmpty(connectionString))
         {
-            services.AddHealthChecks()
+            builder.Services.AddHealthChecks()
                 .AddNpgSql(connectionString, name: "postgresql", tags: ["db", "sql"]);
         }
 
-        return services;
+        return builder;
     }
 }
