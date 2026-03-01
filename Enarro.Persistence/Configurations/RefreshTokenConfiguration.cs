@@ -1,3 +1,4 @@
+using Enarro.Domain.Common;
 using Enarro.Domain.Users;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
@@ -15,6 +16,13 @@ public class RefreshTokenConfiguration : IEntityTypeConfiguration<RefreshToken>
         builder.Property(rt => rt.Token)
             .HasMaxLength(512)
             .IsRequired();
+
+        // Convert RefreshToken.UserId (UserId) to Guid for storage
+        builder.Property(rt => rt.UserId)
+            .HasConversion(
+                id => id.Value,
+                value => UserId.From(value))
+            .HasColumnName("UserId");
 
         builder.Property(rt => rt.RevokedReason)
             .HasMaxLength(500);

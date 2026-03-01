@@ -44,7 +44,7 @@ builder.AddServiceDefaults();
 
 try
 {
-    // ─── Clean Architecture Layer Registration ───────────────────────────
+    // ─── Layer Registration ───────────────────────────
     builder.Services.AddApplication();
     builder.Services.AddPersistence();
     builder.Services.AddInfrastructure();
@@ -140,6 +140,7 @@ try
     
     #endregion Add JWT Authentication
 
+    
     // ─── API-level registrations ─────────────────────────────────────────
 
     // Register CurrentUserService (scoped, implements ICurrentUserService)

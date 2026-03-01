@@ -106,7 +106,7 @@ public class User : AggregateRoot<UserId>, IAuditable, ISoftDeletable
 
     public RefreshToken AddRefreshToken(string token, int expirationDays)
     {
-        var refreshToken = RefreshToken.Create(Id.Value, token, expirationDays);
+        var refreshToken = RefreshToken.Create(Id, token, expirationDays);
         _refreshTokens.Add(refreshToken);
         return refreshToken;
     }

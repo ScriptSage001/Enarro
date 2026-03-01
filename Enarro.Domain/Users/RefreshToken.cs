@@ -1,3 +1,4 @@
+using Enarro.Domain.Common;
 using CoreKernel.DomainMarkers.Auditing;
 using CoreKernel.Primitives.Entities;
 
@@ -16,7 +17,7 @@ public class RefreshToken : Entity<Guid>, ITimeStamped
 
     private RefreshToken(
         Guid id,
-        Guid userId,
+        UserId userId,
         string token,
         DateTime expiresAt) : base(id)
     {
@@ -26,7 +27,7 @@ public class RefreshToken : Entity<Guid>, ITimeStamped
         IsRevoked = false;
     }
 
-    public Guid UserId { get; private set; }
+    public UserId UserId { get; private set; } = null!;
     public string Token { get; private set; } = string.Empty;
     public DateTime ExpiresAt { get; private set; }
     public bool IsRevoked { get; private set; }
@@ -42,7 +43,7 @@ public class RefreshToken : Entity<Guid>, ITimeStamped
 
     #region Factory
 
-    public static RefreshToken Create(Guid userId, string token, int expirationDays)
+    public static RefreshToken Create(UserId userId, string token, int expirationDays)
     {
         return new RefreshToken(
             Guid.NewGuid(),
