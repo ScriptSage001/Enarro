@@ -58,6 +58,9 @@
 
     <ItemGroup>
       <ProjectReference Include="..\Enarro.ServiceDefaults\Enarro.ServiceDefaults.csproj" />
+      <ProjectReference Include="..\Enarro.Application\Enarro.Application.csproj" />
+      <ProjectReference Include="..\Enarro.Persistence\Enarro.Persistence.csproj" />
+      <ProjectReference Include="..\Enarro.Infrastructure\Enarro.Infrastructure.csproj" />
     </ItemGroup>
 
 </Project>
