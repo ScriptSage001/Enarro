@@ -27,22 +27,22 @@ public static class DependencyInjection
     {
         var configuration = builder.Configuration;
 
-        // ─── Auth ────────────────────────────────────────────────────────────
+        // ───────────────────────────── Auth ─────────────────────────────
         builder.Services.AddSingleton<IJwtTokenService, JwtTokenService>();
         AddJwtAuthentication(builder.Services, configuration);
 
-        // ─── AI / Vector Memory ──────────────────────────────────────────────
+        // ───────────────────────────── AI / Vector Memory ─────────────────────────────
         builder.Services.AddSingleton<IVectorMemoryService, KernelMemoryVectorService>();
         AddKernelMemory(builder.Services, configuration);
 
-        // ─── Aspire-managed Redis ────────────────────────────────────────────
+        // ───────────────────────────── Aspire-managed Redis ─────────────────────────────
         builder.AddRedisDistributedCache("redis");
         builder.Services.AddSingleton<IConversationStore, RedisConversationStore>();
 
-        // ─── HTTP Client Factory ─────────────────────────────────────────────
+        // ───────────────────────────── HTTP Client Factory ─────────────────────────────
         builder.Services.AddHttpClient();
 
-        // ─── Health Checks ───────────────────────────────────────────────────
+        // ───────────────────────────── Health Checks ─────────────────────────────
         AddHealthChecks(builder.Services, configuration);
 
         return builder;

@@ -59,7 +59,7 @@ public static class DependencyInjection
         // Run database migrations
         using (var scope = app.Services.CreateScope())
         {
-            var dbContext = scope.ServiceProvider.GetRequiredService<Enarro.Persistence.EnarroDbContext>();
+            var dbContext = scope.ServiceProvider.GetRequiredService<Persistence.EnarroDbContext>();
             await dbContext.Database.MigrateAsync();
         }
 

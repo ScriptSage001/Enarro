@@ -26,15 +26,14 @@ builder.Host.UseSerilog((context, config) =>
 
 builder.AddServiceDefaults();
 
-// ─── Layer Registration ─────────────────────────────
+// ───────────────────────────── Layer Registration ─────────────────────────────
 builder.Services.AddApplication();
 builder.AddPersistence();
 builder.AddInfrastructure();
 builder.Services.AddApi();
 
-// ─── Build & Configure Pipeline ─────────────────────
+// ───────────────────────────── Build & Configure Pipeline ─────────────────────
 var app = builder.Build();
 
 await app.UseApi();
-
 await app.RunAsync();
