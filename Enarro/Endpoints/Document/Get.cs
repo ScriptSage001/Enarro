@@ -1,6 +1,6 @@
+using Enarro.Application.Documents.Queries;
 using Enarro.Extensions;
-using Enarro.Models.Document;
-using Enarro.Services;
+using MediatR;
 
 namespace Enarro.Endpoints.Document;
 
@@ -24,7 +24,7 @@ public class Get : IEndpoint
             .RequireAuthorization()
             .WithTags("Document")
             .WithSummary("Get document details by ID")
-            .Produces<DocumentMetadata>(StatusCodes.Status200OK)
+            .Produces<object>(StatusCodes.Status200OK)
             .ProducesProblem(StatusCodes.Status401Unauthorized)
             .ProducesProblem(StatusCodes.Status404NotFound)
             .ProducesProblem(StatusCodes.Status500InternalServerError);
@@ -35,22 +35,23 @@ public class Get : IEndpoint
     #region Private Methods
 
     private static async Task<IResult> ListDocuments(
-        IDocumentService documentService,
+        ISender sender,
         int page = 1,
         int pageSize = 20,
-        string? tag = null,
         CancellationToken cancellationToken = default)
     {
-        var result = await documentService.ListDocumentsAsync(page, pageSize, tag, cancellationToken);
+        var query = new ListDocumentsQuery(page, pageSize);
+        var result = await sender.Send(query, cancellationToken);
         return result.ToHttpResult();
     }
 
     private static async Task<IResult> GetDocument(
         string id,
-        IDocumentService documentService,
+        ISender sender,
         CancellationToken cancellationToken)
     {
-        var result = await documentService.GetDocumentAsync(id, cancellationToken);
+        var query = new GetDocumentQuery(id);
+        var result = await sender.Send(query, cancellationToken);
         return result.ToHttpResult();
     }
 

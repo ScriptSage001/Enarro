@@ -1,0 +1,15 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="CoreKernel.DomainMarkers" Version="2.0.0" />
+    <PackageReference Include="CoreKernel.Functional" Version="2.0.0" />
+    <PackageReference Include="CoreKernel.Primitives" Version="2.0.0" />
+  </ItemGroup>
+
+</Project>

@@ -1,6 +1,8 @@
+using Enarro.Application.Abstractions;
+using Enarro.Application.Auth.Commands;
 using Enarro.Extensions;
-using Enarro.Models.Auth;
-using Enarro.Services;
+using Enarro.Contracts.Auth;
+using MediatR;
 
 namespace Enarro.Endpoints.Auth;
 
@@ -16,20 +18,20 @@ public class Post : IEndpoint
         app.MapPost("/auth/register", Register)
             .WithName("Register")
             .WithTags("Authentication")
-            .Produces<AuthResponse>(StatusCodes.Status200OK)
+            .Produces<object>(StatusCodes.Status200OK)
             .Produces<object>(StatusCodes.Status400BadRequest)
             .Produces<object>(StatusCodes.Status409Conflict);
 
         app.MapPost("/auth/login", Login)
             .WithName("Login")
             .WithTags("Authentication")
-            .Produces<AuthResponse>(StatusCodes.Status200OK)
+            .Produces<object>(StatusCodes.Status200OK)
             .Produces(StatusCodes.Status401Unauthorized);
 
         app.MapPost("/auth/refresh", Refresh)
             .WithName("RefreshToken")
             .WithTags("Authentication")
-            .Produces<AuthResponse>(StatusCodes.Status200OK)
+            .Produces<object>(StatusCodes.Status200OK)
             .Produces(StatusCodes.Status401Unauthorized);
 
         app.MapPost("/auth/revoke", Revoke)
@@ -45,27 +47,31 @@ public class Post : IEndpoint
 
     #region Private Methods
 
-    private static async Task<IResult> Register(RegisterRequest request, IAuthService authService, CancellationToken cancellationToken)
+    private static async Task<IResult> Register(RegisterRequest request, ISender sender, CancellationToken cancellationToken)
     {
-        var result = await authService.RegisterAsync(request, cancellationToken);
+        var command = new RegisterCommand(request.Email, request.Password, request.FirstName, request.LastName);
+        var result = await sender.Send(command, cancellationToken);
         return result.ToHttpResult();
     }
 
-    private static async Task<IResult> Login(LoginRequest request, IAuthService authService, CancellationToken cancellationToken)
+    private static async Task<IResult> Login(LoginRequest request, ISender sender, CancellationToken cancellationToken)
     {
-        var result = await authService.LoginAsync(request, cancellationToken);
+        var command = new LoginCommand(request.Email, request.Password);
+        var result = await sender.Send(command, cancellationToken);
         return result.ToHttpResult();
     }
 
-    private static async Task<IResult> Refresh(RefreshTokenRequest request, IAuthService authService, CancellationToken cancellationToken)
+    private static async Task<IResult> Refresh(RefreshTokenRequest request, ISender sender, CancellationToken cancellationToken)
     {
-        var result = await authService.RefreshTokenAsync(request.RefreshToken, cancellationToken);
+        var command = new RefreshTokenCommand(request.RefreshToken);
+        var result = await sender.Send(command, cancellationToken);
         return result.ToHttpResult();
     }
 
-    private static async Task<IResult> Revoke(RevokeTokenRequest request, IAuthService authService, HttpContext httpContext, CancellationToken cancellationToken)
+    private static async Task<IResult> Revoke(RevokeTokenRequest request, ISender sender, CancellationToken cancellationToken)
     {
-        var result = await authService.RevokeTokenAsync(request.RefreshToken, request.Reason, cancellationToken);
+        var command = new RevokeTokenCommand(request.RefreshToken, request.Reason);
+        var result = await sender.Send(command, cancellationToken);
         return result.ToHttpResult(() => Results.Ok(new { message = "Token revoked successfully" }));
     }
 

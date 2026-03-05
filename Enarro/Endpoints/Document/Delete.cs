@@ -1,5 +1,6 @@
+using Enarro.Application.Documents.Commands;
 using Enarro.Extensions;
-using Enarro.Services;
+using MediatR;
 
 namespace Enarro.Endpoints.Document;
 
@@ -26,10 +27,11 @@ public class Delete : IEndpoint
 
     private static async Task<IResult> DeleteDocument(
         string id,
-        IDocumentService documentService,
+        ISender sender,
         CancellationToken cancellationToken)
     {
-        var result = await documentService.DeleteDocumentAsync(id, cancellationToken);
+        var command = new DeleteDocumentCommand(id);
+        var result = await sender.Send(command, cancellationToken);
         return result.ToHttpResult(() => Results.Ok(new { DocumentId = id, Status = "Deleted" }));
     }
 
