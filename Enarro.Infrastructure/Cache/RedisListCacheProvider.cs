@@ -17,14 +17,14 @@ public class RedisListCacheProvider<T>(IConnectionMultiplexer redis) : IListCach
     /// </summary>
     public Task<T?> GetAsync(string key, CancellationToken cancellationToken = default) =>
         throw new NotSupportedException(
-            $"{nameof(RedisListCacheProvider<T>)} stores lists. Use {nameof(GetTailAsync)} instead.");
+            $"{nameof(RedisListCacheProvider<>)} stores lists. Use {nameof(GetTailAsync)} instead.");
 
     /// <summary>
     /// Not applicable for list-type keys — throws <see cref="NotSupportedException"/>.
     /// </summary>
     public Task SetAsync(string key, T value, TimeSpan expiry, CancellationToken cancellationToken = default) =>
         throw new NotSupportedException(
-            $"{nameof(RedisListCacheProvider<T>)} stores lists. Use {nameof(AppendAsync)} or {nameof(SetListAsync)} instead.");
+            $"{nameof(RedisListCacheProvider<>)} stores lists. Use {nameof(AppendAsync)} or {nameof(SetListAsync)} instead.");
 
     public async Task RemoveAsync(string key, CancellationToken cancellationToken = default) =>
         await Db.KeyDeleteAsync(key);

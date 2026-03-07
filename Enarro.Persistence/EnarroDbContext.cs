@@ -13,7 +13,7 @@ namespace Enarro.Persistence;
 /// </summary>
 public class EnarroDbContext : DbContext
 {
-    private readonly AuditableEntityInterceptor? _auditableInterceptor;
+    // private readonly AuditableEntityInterceptor? _auditableInterceptor;
     private readonly DomainEventDispatchInterceptor? _domainEventInterceptor;
 
     /// <summary>
@@ -21,11 +21,11 @@ public class EnarroDbContext : DbContext
     /// </summary>
     public EnarroDbContext(
         DbContextOptions<EnarroDbContext> options,
-        AuditableEntityInterceptor? auditableInterceptor = null,
+        // AuditableEntityInterceptor? auditableInterceptor = null,
         DomainEventDispatchInterceptor? domainEventInterceptor = null)
         : base(options)
     {
-        _auditableInterceptor = auditableInterceptor;
+        // _auditableInterceptor = auditableInterceptor;
         _domainEventInterceptor = domainEventInterceptor;
     }
 
@@ -40,7 +40,7 @@ public class EnarroDbContext : DbContext
         // Add interceptors if available (not available during design-time migration generation)
         var interceptors = new List<Microsoft.EntityFrameworkCore.Diagnostics.IInterceptor>();
 
-        if (_auditableInterceptor is not null) interceptors.Add(_auditableInterceptor);
+        // if (_auditableInterceptor is not null) interceptors.Add(_auditableInterceptor);
         if (_domainEventInterceptor is not null) interceptors.Add(_domainEventInterceptor);
 
         if (interceptors.Count > 0)

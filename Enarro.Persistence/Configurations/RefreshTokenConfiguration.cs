@@ -1,5 +1,6 @@
 using Enarro.Domain.Common;
 using Enarro.Domain.Users;
+using Enarro.Persistence.Constants;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
@@ -9,7 +10,7 @@ public class RefreshTokenConfiguration : IEntityTypeConfiguration<RefreshToken>
 {
     public void Configure(EntityTypeBuilder<RefreshToken> builder)
     {
-        builder.ToTable("RefreshTokens");
+        builder.ToTable(TableName.RefreshTokens);
 
         builder.HasKey(rt => rt.Id);
 

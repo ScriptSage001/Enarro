@@ -1,4 +1,5 @@
 ﻿using Enarro.Domain.Conversation;
+using Enarro.Persistence.Constants;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
@@ -11,7 +12,7 @@ internal class ConversationMessageConfiguration : IEntityTypeConfiguration<Conve
 {
     public void Configure(EntityTypeBuilder<ConversationMessage> builder)
     {
-        builder.ToTable("ConversationMessages");
+        builder.ToTable(TableName.ConversationMessages);
 
         builder.HasKey(m => m.Id);
 

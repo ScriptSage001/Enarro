@@ -3,6 +3,7 @@ using Enarro.Application.Abstractions;
 using Enarro.Application.Abstractions.Cache;
 using Enarro.Application.Common;
 using Enarro.Application.Models;
+using Enarro.Domain.Common;
 using Microsoft.Extensions.Logging;
 
 namespace Enarro.Infrastructure.Conversation;
@@ -11,11 +12,14 @@ namespace Enarro.Infrastructure.Conversation;
 /// Orchestrates <see cref="IConversationRepository"/> (source of truth) and
 /// <see cref="ICacheProvider{T}"/> / <see cref="IListCacheProvider{T}"/> (performance layer).
 ///
-/// No direct database or Redis calls live here — all persistence goes through
-/// the repository, all caching through the cache providers.
+/// Mutation flow:
+///   1. Stage changes via repository (change tracker only)
+///   2. Call <see cref="IUnitOfWork.SaveChangesAsync"/> once (atomically persists + fires audit interceptors)
+///   3. Update caches
 /// </summary>
 public class ConversationStore(
     IConversationRepository repository,
+    IUnitOfWork unitOfWork,
     ICacheProvider<CachedSessionMeta> metaCache,
     IListCacheProvider<ConversationMessageModel> messageCache,
     ILogger<ConversationStore> logger) : IConversationStore
@@ -33,25 +37,33 @@ public class ConversationStore(
     private static string MsgKey(string sessionId) => $"session:msg:{sessionId}";
 
     public async Task<Result<string>> CreateSessionAsync(
-        Guid userId, CancellationToken cancellationToken = default)
+        UserId userId, CancellationToken cancellationToken = default)
     {
-        var sessionId = Guid.NewGuid().ToString("N");
-        var now = DateTime.UtcNow;
+        try
+        {
+            var sessionId = Guid.NewGuid().ToString("N");
 
-        var session = new SessionRecord(sessionId, userId, null, now, now);
+            // 1. Stage entity in change tracker
+            repository.AddSession(new SessionRecord(sessionId, userId, null, default, default));
 
-        // Persist first — repository is the source of truth
-        await repository.AddSessionAsync(session, cancellationToken);
+            // 2. Persist atomically — UoW sets CreatedOn / LastModifiedOn via ITimeStamped
+            await unitOfWork.SaveChangesAsync(cancellationToken);
 
-        // Warm meta cache
-        await metaCache.SetAsync(
-            MetaKey(sessionId),
-            new CachedSessionMeta(sessionId, userId, null, now),
-            MetaExpiry,
-            cancellationToken);
+            // 3. Warm meta cache
+            await metaCache.SetAsync(
+                MetaKey(sessionId),
+                new CachedSessionMeta(sessionId, userId, null, DateTimeOffset.UtcNow),
+                MetaExpiry,
+                cancellationToken);
 
-        logger.LogInformation("Created session {SessionId} for user {UserId}", sessionId, userId);
-        return sessionId;
+            logger.LogInformation("Created session {SessionId} for user {UserId}", sessionId, userId);
+            return sessionId;
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to create session for user {UserId}", userId);
+            return Result.Failure<string>(new Error("Session.CreateFailed", ex.Message, ErrorType.Unexpected));
+        }
     }
 
     public async Task<Result<bool>> SessionExistsAsync(
@@ -67,40 +79,55 @@ public class ConversationStore(
         string sessionId, string role, string content,
         CancellationToken cancellationToken = default)
     {
-        var now = DateTime.UtcNow;
-
-        // 1. Persist message and touch session timestamp
-        await repository.AddMessageAsync(
-            new MessageRecord(sessionId, role, content, now), cancellationToken);
-
-        await repository.TouchSessionAsync(sessionId, now, cancellationToken);
-
-        // 2. Auto-generate title from the first user message
-        if (role == "user")
+        try
         {
-            var userMessageCount = await repository.GetMessageCountAsync(
-                sessionId, "user", cancellationToken);
+            var now = DateTimeOffset.UtcNow;
 
-            if (userMessageCount == 1)
+            // 1. Load the aggregate root — messages are owned by the session
+            var session = await repository.GetSessionTrackedAsync(sessionId, cancellationToken);
+            if (session is null)
+                return Result.Failure(new Error("Session.NotFound", $"Session '{sessionId}' does not exist.", ErrorType.NotFound));
+
+            // 2. Add message through the aggregate root
+            //    This also sets LastModifiedOn, marking the session as Modified
+            //    so UoW's ITimeStamped handler fires for the session too
+            session.AddMessage(role, content, now);
+
+            // 3. Persist atomically — one SaveChanges for both message + session timestamp
+            await unitOfWork.SaveChangesAsync(cancellationToken);
+
+            // 4. Auto-generate title from the first user message
+            if (role == "user")
             {
-                var title = GenerateTitle(content);
-                await UpdateSessionTitleAsync(sessionId, title, cancellationToken);
+                var userMessageCount = await repository.GetMessageCountAsync(
+                    sessionId, "user", cancellationToken);
+
+                if (userMessageCount == 1)
+                {
+                    var title = GenerateTitle(content);
+                    await UpdateSessionTitleAsync(sessionId, title, cancellationToken);
+                }
             }
+
+            // 5. Update message cache
+            await messageCache.AppendAsync(
+                MsgKey(sessionId),
+                new ConversationMessageModel(role, content, now),
+                MessageExpiry,
+                cancellationToken);
+
+            await messageCache.TrimAsync(MsgKey(sessionId), CachedMessageCount, cancellationToken);
+
+            // Refresh meta TTL so cache expiry tracks last activity
+            await metaCache.RefreshAsync(MetaKey(sessionId), MetaExpiry, cancellationToken);
+
+            return Result.Success();
         }
-
-        // 3. Append to message cache, trim to window, refresh TTL
-        await messageCache.AppendAsync(
-            MsgKey(sessionId),
-            new ConversationMessageModel(role, content, now),
-            MessageExpiry,
-            cancellationToken);
-
-        await messageCache.TrimAsync(MsgKey(sessionId), CachedMessageCount, cancellationToken);
-
-        // Refresh meta TTL so cache expiry tracks last activity
-        await metaCache.RefreshAsync(MetaKey(sessionId), MetaExpiry, cancellationToken);
-
-        return Result.Success();
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to add message to session {SessionId}", sessionId);
+            return Result.Failure(new Error("Message.AddFailed", ex.Message, ErrorType.Unexpected));
+        }
     }
 
     public async Task<Result<IReadOnlyList<ConversationMessageModel>>> GetHistoryAsync(
@@ -116,7 +143,8 @@ public class ConversationStore(
 
         var exists = await repository.SessionExistsAsync(sessionId, cancellationToken);
         if (!exists)
-            return Result.Failure<IReadOnlyList<ConversationMessageModel>>(new Error("Session.NotFound", $"Session '{sessionId}' does not exist.", ErrorType.NotFound));
+            return Result.Failure<IReadOnlyList<ConversationMessageModel>>(
+                new Error("Session.NotFound", $"Session '{sessionId}' does not exist.", ErrorType.NotFound));
 
         var messages = await repository.GetRecentMessagesAsync(
             sessionId, CachedMessageCount, cancellationToken);
@@ -142,21 +170,22 @@ public class ConversationStore(
     {
         var exists = await repository.SessionExistsAsync(sessionId, cancellationToken);
         if (!exists)
-            return Result.Failure<PagedResult<ConversationMessageModel>>(new Error("Session.NotFound", $"Session '{sessionId}' does not exist.", ErrorType.NotFound));
+            return Result.Failure<PagedResult<ConversationMessageModel>>(
+                new Error("Session.NotFound", $"Session '{sessionId}' does not exist.", ErrorType.NotFound));
 
         var result = await repository.GetFullHistoryAsync(sessionId, page, pageSize, cancellationToken);
         return Result<PagedResult<ConversationMessageModel>>.Success(result);
     }
 
     public async Task<Result<IReadOnlyList<SessionSummaryModel>>> GetUserSessionsAsync(
-        Guid userId, CancellationToken cancellationToken = default)
+        UserId userId, CancellationToken cancellationToken = default)
     {
         var result = await repository.GetUserSessionsAsync(userId, cancellationToken);
         return Result<IReadOnlyList<SessionSummaryModel>>.Success(result);
     }
 
     public async Task<Result<PagedResult<SessionSummaryModel>>> GetUserSessionsPagedAsync(
-        Guid userId, int page = 1, int pageSize = 10,
+        UserId userId, int page = 1, int pageSize = 10,
         CancellationToken cancellationToken = default)
     {
         var result = await repository.GetUserSessionsPagedAsync(userId, page, pageSize, cancellationToken);
@@ -167,7 +196,9 @@ public class ConversationStore(
         string sessionId, string title,
         CancellationToken cancellationToken = default)
     {
+        // Entity-level update — UoW handles LastModifiedOn automatically
         await repository.UpdateSessionTitleAsync(sessionId, title, cancellationToken);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
 
         // Invalidate meta cache — next read will repopulate with the updated title
         await metaCache.RemoveAsync(MetaKey(sessionId), cancellationToken);
@@ -178,10 +209,13 @@ public class ConversationStore(
     public async Task<Result<bool>> DeleteSessionAsync(
         string sessionId, CancellationToken cancellationToken = default)
     {
+        // Entity-level removal — UoW's HandleSoftDelete converts to soft-delete
         var deleted = await repository.DeleteSessionAsync(sessionId, cancellationToken);
         if (!deleted) return false;
 
-        // Evict both cache entries — cascade delete in PostgreSQL handles messages
+        await unitOfWork.SaveChangesAsync(cancellationToken);
+
+        // Evict both cache entries
         await metaCache.RemoveAsync(MetaKey(sessionId), cancellationToken);
         await messageCache.RemoveAsync(MsgKey(sessionId), cancellationToken);
 
@@ -213,6 +247,6 @@ public class ConversationStore(
 /// </summary>
 public record CachedSessionMeta(
     string SessionId,
-    Guid UserId,
+    UserId UserId,
     string? Title,
-    DateTime CreatedAt);
+    DateTimeOffset CreatedAt);

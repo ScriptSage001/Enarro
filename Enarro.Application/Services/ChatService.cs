@@ -1,5 +1,6 @@
 ﻿using Enarro.Application.Abstractions;
 using Enarro.Application.Models;
+using Enarro.Domain.Common;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using System.Runtime.CompilerServices;
@@ -42,7 +43,7 @@ internal class ChatService : IChatService
 
         if (!sessionValid)
         {
-            var createResult = await _conversationService.CreateSessionAsync(userId, cancellationToken);
+            var createResult = await _conversationService.CreateSessionAsync(UserId.From(userId), cancellationToken);
             if (createResult.IsFailure)
             {
                 _logger.LogError("Failed to create session for streaming chat: {Error}", createResult.Error.Message);

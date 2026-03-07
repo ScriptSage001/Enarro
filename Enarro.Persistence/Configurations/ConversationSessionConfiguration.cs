@@ -1,4 +1,5 @@
 ﻿using Enarro.Domain.Conversation;
+using Enarro.Persistence.Constants;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
@@ -11,16 +12,19 @@ internal class ConversationSessionConfiguration : IEntityTypeConfiguration<Conve
 {
     public void Configure(EntityTypeBuilder<ConversationSession> builder)
     {
-        builder.ToTable("ConversationSessions");
+        builder.ToTable(TableName.ConversationSessions);
 
         builder.HasKey(s => s.Id);
 
         builder.HasIndex(s => s.SessionId).IsUnique();
         builder.HasIndex(s => s.UserId);
-        builder.HasIndex(s => s.UpdatedAt);
+        builder.HasIndex(s => s.LastModifiedOn);
 
         builder.Property(s => s.SessionId).HasMaxLength(64).IsRequired();
         builder.Property(s => s.Title).HasMaxLength(200);
+
+        // Global query filter for soft delete
+        builder.HasQueryFilter(s => !s.IsDeleted);
 
         builder.HasMany(s => s.Messages)
             .WithOne(m => m.Session)

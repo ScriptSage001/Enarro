@@ -1,6 +1,7 @@
 using CoreKernel.Functional.Results;
 using Enarro.Application.Common;
 using Enarro.Application.Models;
+using Enarro.Domain.Common;
 
 namespace Enarro.Application.Abstractions;
 
@@ -10,7 +11,7 @@ namespace Enarro.Application.Abstractions;
 /// </summary>
 public interface IConversationStore
 {
-    Task<Result<string>> CreateSessionAsync(Guid userId, CancellationToken cancellationToken = default);
+    Task<Result<string>> CreateSessionAsync(UserId userId, CancellationToken cancellationToken = default);
 
     Task<Result<bool>> SessionExistsAsync(string sessionId, CancellationToken cancellationToken = default);
 
@@ -26,7 +27,7 @@ public interface IConversationStore
         CancellationToken cancellationToken = default);
 
     Task<Result<IReadOnlyList<SessionSummaryModel>>> GetUserSessionsAsync(
-        Guid userId,
+        UserId userId,
         CancellationToken cancellationToken = default);
 
     Task<Result<bool>> DeleteSessionAsync(
@@ -37,7 +38,7 @@ public interface IConversationStore
     /// Paginated session list for the UI sidebar.
     /// </summary>
     Task<Result<PagedResult<SessionSummaryModel>>> GetUserSessionsPagedAsync(
-        Guid userId, int page = 1, int pageSize = 10,
+        UserId userId, int page = 1, int pageSize = 10,
         CancellationToken cancellationToken = default);
 
     /// <summary>

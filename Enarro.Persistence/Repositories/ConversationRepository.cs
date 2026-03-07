@@ -1,6 +1,7 @@
 ﻿using Enarro.Application.Abstractions;
 using Enarro.Application.Common;
 using Enarro.Application.Models;
+using Enarro.Domain.Common;
 using Enarro.Domain.Conversation;
 using Microsoft.EntityFrameworkCore;
 
@@ -8,7 +9,11 @@ namespace Enarro.Persistence.Repositories;
 
 public class ConversationRepository(EnarroDbContext db) : IConversationRepository
 {
-    // ─── Sessions ────────────────────────────────────────────────────────
+    #region Sessions
+
+    public async Task<ConversationSession?> GetSessionTrackedAsync(string sessionId, CancellationToken ct = default) =>
+        await db.ConversationSessions
+            .FirstOrDefaultAsync(s => s.SessionId == sessionId, ct);
 
     public async Task<SessionRecord?> GetSessionAsync(string sessionId, CancellationToken ct = default)
     {
@@ -17,49 +22,49 @@ public class ConversationRepository(EnarroDbContext db) : IConversationRepositor
             .FirstOrDefaultAsync(s => s.SessionId == sessionId, ct);
 
         return entity is null ? null
-            : new SessionRecord(entity.SessionId, entity.UserId, entity.Title, entity.CreatedAt, entity.UpdatedAt);
+            : new SessionRecord(entity.SessionId, entity.UserId, entity.Title, entity.CreatedOn, entity.LastModifiedOn);
     }
 
     public Task<bool> SessionExistsAsync(string sessionId, CancellationToken ct = default) =>
         db.ConversationSessions.AnyAsync(s => s.SessionId == sessionId, ct);
 
-    public async Task AddSessionAsync(SessionRecord session, CancellationToken ct = default)
+    public void AddSession(SessionRecord session)
     {
-        var entity = ConversationSession.Create(session.SessionId, session.UserId, session.CreatedAt);
-        entity.Title = session.Title;
-
+        var entity = ConversationSession.Create(session.SessionId, session.UserId, session.Title);
         db.ConversationSessions.Add(entity);
-        await db.SaveChangesAsync(ct);
     }
 
-    public async Task UpdateSessionTitleAsync(string sessionId, string title, CancellationToken ct = default) =>
-        await db.ConversationSessions
-            .Where(s => s.SessionId == sessionId)
-            .ExecuteUpdateAsync(s => s.SetProperty(x => x.Title, title), ct);
+    public async Task UpdateSessionTitleAsync(string sessionId, string title, CancellationToken ct = default)
+    {
+        var entity = await db.ConversationSessions
+            .FirstOrDefaultAsync(s => s.SessionId == sessionId, ct);
 
-    public async Task TouchSessionAsync(string sessionId, DateTime updatedAt, CancellationToken ct = default) =>
-        await db.ConversationSessions
-            .Where(s => s.SessionId == sessionId)
-            .ExecuteUpdateAsync(s => s.SetProperty(x => x.UpdatedAt, updatedAt), ct);
+        if (entity is not null)
+        {
+            entity.Title = title;
+        }
+    }
 
     public async Task<bool> DeleteSessionAsync(string sessionId, CancellationToken ct = default)
     {
-        var deleted = await db.ConversationSessions
-            .Where(s => s.SessionId == sessionId)
-            .ExecuteDeleteAsync(ct);
+        var entity = await db.ConversationSessions
+            .FirstOrDefaultAsync(s => s.SessionId == sessionId, ct);
 
-        return deleted > 0;
+        if (entity is null) return false;
+
+        db.ConversationSessions.Remove(entity);
+        return true;
     }
 
     public async Task<IReadOnlyList<SessionSummaryModel>> GetUserSessionsAsync(
-        Guid userId, CancellationToken ct = default) =>
+        UserId userId, CancellationToken ct = default) =>
         await BuildSessionSummaryQuery(userId).ToListAsync(ct);
 
     public async Task<PagedResult<SessionSummaryModel>> GetUserSessionsPagedAsync(
-        Guid userId, int page, int pageSize, CancellationToken ct = default)
+        UserId userId, int page, int pageSize, CancellationToken ct = default)
     {
         var query = BuildSessionSummaryQuery(userId);
-        var total = await db.ConversationSessions.CountAsync(s => s.UserId == userId, ct);
+        var total = await query.CountAsync(ct);
 
         var items = await query
             .Skip((page - 1) * pageSize)
@@ -69,15 +74,16 @@ public class ConversationRepository(EnarroDbContext db) : IConversationRepositor
         return new PagedResult<SessionSummaryModel>(items, total, page, pageSize);
     }
 
-    // ─── Messages ────────────────────────────────────────────────────────
+    #endregion Sessions
 
-    public async Task AddMessageAsync(MessageRecord message, CancellationToken ct = default)
+    #region Messages
+
+    public void AddMessage(MessageRecord message)
     {
         var entity = ConversationMessage.Create(
             message.SessionId, message.Role, message.Content, message.CreatedAt);
 
         db.ConversationMessages.Add(entity);
-        await db.SaveChangesAsync(ct);
     }
 
     public Task<int> GetMessageCountAsync(string sessionId, string role, CancellationToken ct = default) =>
@@ -90,7 +96,7 @@ public class ConversationRepository(EnarroDbContext db) : IConversationRepositor
             .Where(m => m.SessionId == sessionId)
             .OrderByDescending(m => m.CreatedAt)
             .Take(limit)
-            .OrderBy(m => m.CreatedAt) // restore ascending after top-N
+            .OrderBy(m => m.CreatedAt)
             .AsNoTracking()
             .Select(m => new MessageRecord(m.SessionId, m.Role, m.Content, m.CreatedAt))
             .ToListAsync(ct);
@@ -114,17 +120,19 @@ public class ConversationRepository(EnarroDbContext db) : IConversationRepositor
         return new PagedResult<ConversationMessageModel>(items, total, page, pageSize);
     }
 
+    #endregion Messages
+
     #region Private Helpers
 
-    private IQueryable<SessionSummaryModel> BuildSessionSummaryQuery(Guid userId) =>
+    private IQueryable<SessionSummaryModel> BuildSessionSummaryQuery(UserId userId) =>
         db.ConversationSessions
             .Where(s => s.UserId == userId)
-            .OrderByDescending(s => s.UpdatedAt)
+            .OrderByDescending(s => s.LastModifiedOn)
             .AsNoTracking()
             .Select(s => new SessionSummaryModel(
                 s.SessionId,
                 s.Title,
-                s.CreatedAt,
+                s.CreatedOn,
                 s.Messages.Count(),
                 s.Messages
                     .OrderByDescending(m => m.CreatedAt)

@@ -6,6 +6,6 @@ namespace Enarro.Application.Models;
 public record SessionSummaryModel(
     string SessionId,
     string? Title,
-    DateTime CreatedAt,
+    DateTimeOffset CreatedAt,
     int MessageCount,
     string? LastMessage);

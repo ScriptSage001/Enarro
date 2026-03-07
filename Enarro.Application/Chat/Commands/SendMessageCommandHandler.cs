@@ -2,6 +2,8 @@ using CoreKernel.Functional.Results;
 using CoreKernel.Messaging.Commands;
 using Enarro.Application.Abstractions;
 using Enarro.Application.Models;
+using Enarro.Domain.Common;
+using Enarro.Domain.Users;
 
 namespace Enarro.Application.Chat.Commands;
 
@@ -14,10 +16,18 @@ public sealed class SendMessageCommandHandler(
     public async Task<Result<ChatResultModel>> Handle(
         SendMessageCommand command, CancellationToken cancellationToken)
     {
+        var user = currentUserService.UserId;
+        if (user == null) 
+        {
+            // log error
+            return Result.Failure<ChatResultModel>(UserErrors.InvalidToken());
+        }
+        var userId = UserId.From(user.Value);
+
         var sessionId = command.SessionId;
         if (string.IsNullOrEmpty(sessionId))
         {
-            var userId = currentUserService.UserId ?? Guid.Empty;
+            
             var sessionIdResult = await conversationStore.CreateSessionAsync(userId, cancellationToken);
 
             if (sessionIdResult.IsFailure)
