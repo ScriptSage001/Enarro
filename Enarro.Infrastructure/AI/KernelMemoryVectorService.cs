@@ -97,7 +97,7 @@ public class KernelMemoryVectorService(
             {
                 foreach (var filter in filters)
                 {
-                    memoryFilter.Add(filter.Key, filter.Value);
+                    memoryFilter.ByTag(filter.Key, filter.Value);
                 }
             }
 

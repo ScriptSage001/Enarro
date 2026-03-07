@@ -1,3 +1,4 @@
+using Enarro.Domain.Conversation;
 using Enarro.Domain.Documents;
 using Enarro.Domain.Users;
 using Enarro.Persistence.Interceptors;
@@ -31,6 +32,8 @@ public class EnarroDbContext : DbContext
     public DbSet<User> Users => Set<User>();
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
     public DbSet<Document> Documents => Set<Document>();
+    public DbSet<ConversationSession> ConversationSessions => Set<ConversationSession>();
+    public DbSet<ConversationMessage> ConversationMessages => Set<ConversationMessage>();
 
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     {

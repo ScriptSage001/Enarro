@@ -7,6 +7,5 @@ public record Citation(
     string DocumentId,
     string DocumentName,
     string Excerpt,
-    float Relevance,
-    int PageNumber = 0
-);
+    double Relevance,
+    int PageNumber = 0);

@@ -1,9 +1,12 @@
 using System.Data.Common;
 using System.Text;
 using Enarro.Application.Abstractions;
+using Enarro.Application.Abstractions.Cache;
+using Enarro.Application.Models;
 using Enarro.Infrastructure.AI;
 using Enarro.Infrastructure.Auth;
 using Enarro.Infrastructure.Cache;
+using Enarro.Infrastructure.Conversation;
 using Enarro.Infrastructure.HealthChecks;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.Extensions.Configuration;
@@ -21,28 +24,34 @@ namespace Enarro.Infrastructure;
 public static class DependencyInjection
 {
     /// <summary>
-    /// Registers Infrastructure services: JWT auth, Kernel Memory, Redis, health checks.
+    /// Registers Infrastructure services: JWT auth, Kernel Memory, Redis, conversation store, health checks.
     /// </summary>
     public static IHostApplicationBuilder AddInfrastructure(this IHostApplicationBuilder builder)
     {
         var configuration = builder.Configuration;
 
-        // ───────────────────────────── Auth ─────────────────────────────
+        // ─── Auth ────────────────────────────────────────────────────────
         builder.Services.AddSingleton<IJwtTokenService, JwtTokenService>();
         AddJwtAuthentication(builder.Services, configuration);
 
-        // ───────────────────────────── AI / Vector Memory ─────────────────────────────
+        // ─── AI / Vector Memory ──────────────────────────────────────────
         builder.Services.AddSingleton<IVectorMemoryService, KernelMemoryVectorService>();
         AddKernelMemory(builder.Services, configuration);
 
-        // ───────────────────────────── Aspire-managed Redis ─────────────────────────────
+        // ─── Aspire-managed Redis ────────────────────────────────────────
         builder.AddRedisDistributedCache("redis");
-        builder.Services.AddSingleton<IConversationStore, RedisConversationStore>();
 
-        // ───────────────────────────── HTTP Client Factory ─────────────────────────────
+        // ─── Cache Providers ─────────────────────────────────────────────
+        builder.Services.AddSingleton(typeof(ICacheProvider<>), typeof(RedisCacheProvider<>));
+        builder.Services.AddSingleton(typeof(IListCacheProvider<>), typeof(RedisListCacheProvider<>));
+
+        // ─── Conversation Store (Redis + PostgreSQL orchestration) ───────
+        builder.Services.AddScoped<IConversationStore, ConversationStore>();
+
+        // ─── HTTP Client Factory ─────────────────────────────────────────
         builder.Services.AddHttpClient();
 
-        // ───────────────────────────── Health Checks ─────────────────────────────
+        // ─── Health Checks ───────────────────────────────────────────────
         AddHealthChecks(builder.Services, configuration);
 
         return builder;

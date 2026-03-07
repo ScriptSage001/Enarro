@@ -1,3 +1,4 @@
+using Enarro.Application.Services;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Enarro.Application;
@@ -15,6 +16,9 @@ public static class DependencyInjection
         {
             cfg.RegisterServicesFromAssembly(typeof(DependencyInjection).Assembly);
         });
+
+        // Application services
+        services.AddScoped<IChatService, ChatService>();
 
         return services;
     }

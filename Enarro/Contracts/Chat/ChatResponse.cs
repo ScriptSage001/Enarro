@@ -6,8 +6,6 @@ namespace Enarro.Contracts.Chat;
 public record ChatResponse(
     string Answer,
     List<Citation> Citations,
-    float Confidence,
+    double ConfidenceScore,
     string SessionId,
-    int TokensUsed,
-    DateTime Timestamp
-);
+    int TokensUsed);

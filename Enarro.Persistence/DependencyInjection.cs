@@ -38,6 +38,9 @@ public static class DependencyInjection
         // Query Services
         builder.Services.AddScoped<IDocumentQueryService, QueryServices.DocumentQueryService>();
 
+        // Conversation
+        builder.Services.AddScoped<IConversationRepository, ConversationRepository>();
+
         // Health Checks
         var connectionString = builder.Configuration.GetConnectionString("enarro-db");
         if (!string.IsNullOrEmpty(connectionString))

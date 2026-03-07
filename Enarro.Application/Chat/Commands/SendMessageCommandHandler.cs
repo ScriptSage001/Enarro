@@ -18,19 +18,28 @@ public sealed class SendMessageCommandHandler(
         if (string.IsNullOrEmpty(sessionId))
         {
             var userId = currentUserService.UserId ?? Guid.Empty;
-            sessionId = await conversationStore.CreateSessionAsync(userId, cancellationToken);
+            var sessionIdResult = await conversationStore.CreateSessionAsync(userId, cancellationToken);
+
+            if (sessionIdResult.IsFailure)
+            {
+                // log
+                return Result.Failure<ChatResultModel>(sessionIdResult.Error);
+            }
+
+            sessionId = sessionIdResult.Value;
         }
 
         await conversationStore.AddMessageAsync(sessionId, "user", command.Message, cancellationToken);
 
-        var history = await conversationStore.GetHistoryAsync(sessionId, 10, cancellationToken);
+        var historyResult = await conversationStore.GetHistoryAsync(sessionId, 10, cancellationToken);
+        var messages = historyResult.IsSuccess ? historyResult.Value : [];
         var contextBuilder = new System.Text.StringBuilder();
-        foreach (var msg in history.Where(m => m.Role != "system"))
+        foreach (var msg in messages.Where(m => m.Role != "system"))
         {
             contextBuilder.AppendLine($"{msg.Role}: {msg.Content}");
         }
 
-        var enrichedQuestion = history.Count > 1
+        var enrichedQuestion = messages.Count > 1
             ? $"Previous conversation:\n{contextBuilder}\n\nCurrent question: {command.Message}"
             : command.Message;
 

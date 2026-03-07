@@ -1,9 +1,9 @@
-namespace Enarro.Contracts.Chat;
+﻿namespace Enarro.Application.Models;
 
 /// <summary>
 /// Represents a chat request with optional session context and filtering
 /// </summary>
-public record ChatRequest(
+public record ChatRequestModel(
     string Message,
     string? SessionId = null,
     Dictionary<string, string>? Filters = null,
