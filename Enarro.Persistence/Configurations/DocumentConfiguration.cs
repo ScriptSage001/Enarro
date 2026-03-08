@@ -1,5 +1,6 @@
 using Enarro.Domain.Common;
 using Enarro.Domain.Documents;
+using Enarro.Persistence.Constants;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
@@ -9,7 +10,7 @@ public class DocumentConfiguration : IEntityTypeConfiguration<Document>
 {
     public void Configure(EntityTypeBuilder<Document> builder)
     {
-        builder.ToTable("Documents");
+        builder.ToTable(TableName.Documents);
 
         builder.HasKey(d => d.Id);
 

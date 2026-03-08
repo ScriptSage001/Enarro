@@ -1,3 +1,4 @@
+using Enarro.Domain.Conversation;
 using Enarro.Domain.Documents;
 using Enarro.Domain.Users;
 using Enarro.Persistence.Interceptors;
@@ -12,7 +13,7 @@ namespace Enarro.Persistence;
 /// </summary>
 public class EnarroDbContext : DbContext
 {
-    private readonly AuditableEntityInterceptor? _auditableInterceptor;
+    // private readonly AuditableEntityInterceptor? _auditableInterceptor;
     private readonly DomainEventDispatchInterceptor? _domainEventInterceptor;
 
     /// <summary>
@@ -20,24 +21,26 @@ public class EnarroDbContext : DbContext
     /// </summary>
     public EnarroDbContext(
         DbContextOptions<EnarroDbContext> options,
-        AuditableEntityInterceptor? auditableInterceptor = null,
+        // AuditableEntityInterceptor? auditableInterceptor = null,
         DomainEventDispatchInterceptor? domainEventInterceptor = null)
         : base(options)
     {
-        _auditableInterceptor = auditableInterceptor;
+        // _auditableInterceptor = auditableInterceptor;
         _domainEventInterceptor = domainEventInterceptor;
     }
 
     public DbSet<User> Users => Set<User>();
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
     public DbSet<Document> Documents => Set<Document>();
+    public DbSet<ConversationSession> ConversationSessions => Set<ConversationSession>();
+    public DbSet<ConversationMessage> ConversationMessages => Set<ConversationMessage>();
 
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     {
         // Add interceptors if available (not available during design-time migration generation)
         var interceptors = new List<Microsoft.EntityFrameworkCore.Diagnostics.IInterceptor>();
 
-        if (_auditableInterceptor is not null) interceptors.Add(_auditableInterceptor);
+        // if (_auditableInterceptor is not null) interceptors.Add(_auditableInterceptor);
         if (_domainEventInterceptor is not null) interceptors.Add(_domainEventInterceptor);
 
         if (interceptors.Count > 0)

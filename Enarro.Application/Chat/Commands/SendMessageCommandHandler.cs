@@ -2,6 +2,10 @@ using CoreKernel.Functional.Results;
 using CoreKernel.Messaging.Commands;
 using Enarro.Application.Abstractions;
 using Enarro.Application.Models;
+using Enarro.Domain.Common;
+using Enarro.Domain.Users;
+using System.Text;
+using static Enarro.Application.Constants.ConversationConstants;
 
 namespace Enarro.Application.Chat.Commands;
 
@@ -14,23 +18,40 @@ public sealed class SendMessageCommandHandler(
     public async Task<Result<ChatResultModel>> Handle(
         SendMessageCommand command, CancellationToken cancellationToken)
     {
+        var user = currentUserService.UserId;
+        if (user == null) 
+        {
+            // log error
+            return Result.Failure<ChatResultModel>(UserErrors.InvalidToken());
+        }
+        var userId = UserId.From(user.Value);
+
         var sessionId = command.SessionId;
         if (string.IsNullOrEmpty(sessionId))
         {
-            var userId = currentUserService.UserId ?? Guid.Empty;
-            sessionId = await conversationStore.CreateSessionAsync(userId, cancellationToken);
+            
+            var sessionIdResult = await conversationStore.CreateSessionAsync(userId, cancellationToken);
+
+            if (sessionIdResult.IsFailure)
+            {
+                // log
+                return Result.Failure<ChatResultModel>(sessionIdResult.Error);
+            }
+
+            sessionId = sessionIdResult.Value;
         }
 
-        await conversationStore.AddMessageAsync(sessionId, "user", command.Message, cancellationToken);
+        await conversationStore.AddMessageAsync(sessionId, Roles.User, command.Message, cancellationToken);
 
-        var history = await conversationStore.GetHistoryAsync(sessionId, 10, cancellationToken);
-        var contextBuilder = new System.Text.StringBuilder();
-        foreach (var msg in history.Where(m => m.Role != "system"))
+        var historyResult = await conversationStore.GetHistoryAsync(sessionId, 10, cancellationToken);
+        var messages = historyResult.IsSuccess ? historyResult.Value : [];
+        var contextBuilder = new StringBuilder();
+        foreach (var msg in messages.Where(m => m.Role != Roles.System))
         {
             contextBuilder.AppendLine($"{msg.Role}: {msg.Content}");
         }
 
-        var enrichedQuestion = history.Count > 1
+        var enrichedQuestion = messages.Count > 1
             ? $"Previous conversation:\n{contextBuilder}\n\nCurrent question: {command.Message}"
             : command.Message;
 
@@ -51,7 +72,7 @@ public sealed class SendMessageCommandHandler(
 
         var result = searchResult.Value;
 
-        await conversationStore.AddMessageAsync(sessionId, "assistant", result.Answer, cancellationToken);
+        await conversationStore.AddMessageAsync(sessionId, Roles.Assistant, result.Answer, cancellationToken);
 
         var citations = result.Citations.Select(c =>
             new CitationModel(c.DocumentId, c.FileName, c.Excerpt, c.Relevance)).ToList();

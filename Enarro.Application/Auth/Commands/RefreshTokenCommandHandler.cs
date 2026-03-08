@@ -29,7 +29,7 @@ public sealed class RefreshTokenCommandHandler(
             return Result.Failure<AuthResultModel>(UserErrors.InvalidToken());
         }
 
-        existingToken.Revoke("Replaced by new token");
+        user.RevokeRefreshToken(command.RefreshToken, "Replaced by new token");
 
         var accessToken = jwtTokenService.GenerateAccessToken(user.Id.Value, user.Email.Value, user.Role);
         var newRefreshTokenValue = jwtTokenService.GenerateRefreshToken();

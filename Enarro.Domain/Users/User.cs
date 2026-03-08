@@ -108,13 +108,18 @@ public class User : AggregateRoot<UserId>, IAuditable, ISoftDeletable
     {
         var refreshToken = RefreshToken.Create(Id, token, expirationDays);
         _refreshTokens.Add(refreshToken);
+        LastModifiedOn = DateTimeOffset.UtcNow; // Marks user as modified
         return refreshToken;
     }
 
     public void RevokeRefreshToken(string token, string? reason = null)
     {
         var refreshToken = _refreshTokens.FirstOrDefault(rt => rt.Token == token);
-        refreshToken?.Revoke(reason);
+        if (refreshToken is not null)
+        {
+            refreshToken.Revoke(reason);
+            LastModifiedOn = DateTimeOffset.UtcNow; // Marks user as modified
+        }
     }
 
     #endregion

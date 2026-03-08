@@ -1,6 +1,6 @@
 using Enarro.Domain.Common;
 using Enarro.Domain.Users;
-using Enarro.Domain.ValueObjects;
+using Enarro.Persistence.Constants;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
@@ -10,7 +10,7 @@ public class UserConfiguration : IEntityTypeConfiguration<User>
 {
     public void Configure(EntityTypeBuilder<User> builder)
     {
-        builder.ToTable("Users");
+        builder.ToTable(TableName.Users);
 
         builder.HasKey(u => u.Id);
 
