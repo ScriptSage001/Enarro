@@ -61,10 +61,6 @@ public interface IConversationRepository
 
     #region Messages
 
-    /// <summary>
-    /// Stages a new message in the change tracker. Call UoW.SaveChangesAsync to persist.
-    /// </summary>
-    void AddMessage(MessageRecord message);
 
     Task<int> GetMessageCountAsync(string sessionId, string role, CancellationToken ct = default);
 

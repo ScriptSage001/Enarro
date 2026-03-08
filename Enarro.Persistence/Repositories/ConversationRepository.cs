@@ -13,7 +13,8 @@ public class ConversationRepository(EnarroDbContext db) : IConversationRepositor
 
     public async Task<ConversationSession?> GetSessionTrackedAsync(string sessionId, CancellationToken ct = default) =>
         await db.ConversationSessions
-            .FirstOrDefaultAsync(s => s.SessionId == sessionId, ct);
+                    .Include(x => x.Messages)
+                    .FirstOrDefaultAsync(s => s.SessionId == sessionId, ct);
 
     public async Task<SessionRecord?> GetSessionAsync(string sessionId, CancellationToken ct = default)
     {
@@ -78,13 +79,6 @@ public class ConversationRepository(EnarroDbContext db) : IConversationRepositor
 
     #region Messages
 
-    public void AddMessage(MessageRecord message)
-    {
-        var entity = ConversationMessage.Create(
-            message.SessionId, message.Role, message.Content, message.CreatedAt);
-
-        db.ConversationMessages.Add(entity);
-    }
 
     public Task<int> GetMessageCountAsync(string sessionId, string role, CancellationToken ct = default) =>
         db.ConversationMessages

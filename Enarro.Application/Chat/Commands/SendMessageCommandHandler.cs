@@ -4,6 +4,8 @@ using Enarro.Application.Abstractions;
 using Enarro.Application.Models;
 using Enarro.Domain.Common;
 using Enarro.Domain.Users;
+using System.Text;
+using static Enarro.Application.Constants.ConversationConstants;
 
 namespace Enarro.Application.Chat.Commands;
 
@@ -39,12 +41,12 @@ public sealed class SendMessageCommandHandler(
             sessionId = sessionIdResult.Value;
         }
 
-        await conversationStore.AddMessageAsync(sessionId, "user", command.Message, cancellationToken);
+        await conversationStore.AddMessageAsync(sessionId, Roles.User, command.Message, cancellationToken);
 
         var historyResult = await conversationStore.GetHistoryAsync(sessionId, 10, cancellationToken);
         var messages = historyResult.IsSuccess ? historyResult.Value : [];
-        var contextBuilder = new System.Text.StringBuilder();
-        foreach (var msg in messages.Where(m => m.Role != "system"))
+        var contextBuilder = new StringBuilder();
+        foreach (var msg in messages.Where(m => m.Role != Roles.System))
         {
             contextBuilder.AppendLine($"{msg.Role}: {msg.Content}");
         }
@@ -70,7 +72,7 @@ public sealed class SendMessageCommandHandler(
 
         var result = searchResult.Value;
 
-        await conversationStore.AddMessageAsync(sessionId, "assistant", result.Answer, cancellationToken);
+        await conversationStore.AddMessageAsync(sessionId, Roles.Assistant, result.Answer, cancellationToken);
 
         var citations = result.Citations.Select(c =>
             new CitationModel(c.DocumentId, c.FileName, c.Excerpt, c.Relevance)).ToList();

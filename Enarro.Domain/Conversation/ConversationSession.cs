@@ -60,7 +60,7 @@ public class ConversationSession : AggregateRoot<Guid>, ITimeStamped, ISoftDelet
     {
         var message = ConversationMessage.Create(SessionId, role, content, createdAt);
         Messages.Add(message);
-        LastModifiedOn = createdAt; // marks entity as Modified; UoW overwrites with precise time
+        LastModifiedOn = createdAt;
         return message;
     }
 }

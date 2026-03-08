@@ -5,6 +5,7 @@ using Enarro.Application.Common;
 using Enarro.Application.Models;
 using Enarro.Domain.Common;
 using Microsoft.Extensions.Logging;
+using static Enarro.Application.Constants.ConversationConstants;
 
 namespace Enarro.Infrastructure.Conversation;
 
@@ -89,23 +90,28 @@ public class ConversationStore(
                 return Result.Failure(new Error("Session.NotFound", $"Session '{sessionId}' does not exist.", ErrorType.NotFound));
 
             // 2. Add message through the aggregate root
-            //    This also sets LastModifiedOn, marking the session as Modified
-            //    so UoW's ITimeStamped handler fires for the session too
             session.AddMessage(role, content, now);
 
             // 3. Persist atomically — one SaveChanges for both message + session timestamp
             await unitOfWork.SaveChangesAsync(cancellationToken);
 
             // 4. Auto-generate title from the first user message
-            if (role == "user")
+            if (Roles.User.Equals(role, StringComparison.OrdinalIgnoreCase))
             {
-                var userMessageCount = await repository.GetMessageCountAsync(
-                    sessionId, "user", cancellationToken);
+                // var userMessageCount = await repository.GetMessageCountAsync(
+                //     sessionId, "user", cancellationToken);
 
-                if (userMessageCount == 1)
+                // var userMessageCount = session.Messages.Count(x => Roles.User.Equals(x.Role, StringComparison.OrdinalIgnoreCase));
+
+                if (string.IsNullOrEmpty(session.Title))
                 {
                     var title = GenerateTitle(content);
-                    await UpdateSessionTitleAsync(sessionId, title, cancellationToken);
+                    session.Title = title;
+
+                    await unitOfWork.SaveChangesAsync(cancellationToken);
+
+                    // Invalidate meta cache — next read will repopulate with the updated title
+                    await metaCache.RemoveAsync(MetaKey(sessionId), cancellationToken);
                 }
             }
 
@@ -136,7 +142,7 @@ public class ConversationStore(
     {
         var cached = await messageCache.GetTailAsync(MsgKey(sessionId), maxMessages, cancellationToken);
         if (cached.Count > 0)
-            return Result<IReadOnlyList<ConversationMessageModel>>.Success(cached);
+            return Result.Success(cached);
 
         // Cache miss — verify session exists before hitting the database
         logger.LogDebug("Cache miss for session {SessionId}, loading from repository", sessionId);
